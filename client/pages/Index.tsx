@@ -20,8 +20,15 @@ import {
   Github,
   Twitter,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function Index() {
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    navigate("/editor");
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Navigation */}
@@ -71,6 +78,7 @@ export default function Index() {
               <Button
                 size="sm"
                 className="bg-gradient-to-r from-gradient-from to-gradient-to hover:from-gradient-via hover:to-gradient-from"
+                onClick={handleGetStarted}
               >
                 Get Started
               </Button>
@@ -106,6 +114,7 @@ export default function Index() {
             <Button
               size="lg"
               className="bg-gradient-to-r from-gradient-from to-gradient-to hover:from-gradient-via hover:to-gradient-from"
+              onClick={handleGetStarted}
             >
               <PlayCircle className="w-5 h-5 mr-2" />
               Start Building Free
@@ -247,6 +256,7 @@ export default function Index() {
               <Button
                 size="lg"
                 className="bg-gradient-to-r from-gradient-from to-gradient-to hover:from-gradient-via hover:to-gradient-from"
+                onClick={handleGetStarted}
               >
                 Start Building Now
                 <ArrowRight className="w-5 h-5 ml-2" />
