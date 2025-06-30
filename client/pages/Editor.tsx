@@ -1,6 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import {
   Smartphone,
   Code,
   Play,
@@ -9,9 +17,34 @@ import {
   Layers,
   Palette,
   FileCode,
+  Upload,
+  Download,
+  FolderOpen,
+  FileText,
+  Archive,
+  ChevronDown,
 } from "lucide-react";
+import { useRef, useState } from "react";
 
 export default function Editor() {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [projectFiles, setProjectFiles] = useState<File[]>([]);
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setProjectFiles((prev) => [...prev, ...files]);
+  };
+
+  const handleImportProject = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleExportProject = (format: string) => {
+    // Export logic would go here
+    console.log(`Exporting project as ${format}`);
+    // This would generate and download the project files
+  };
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Editor Header */}
@@ -40,40 +73,131 @@ export default function Editor() {
           </div>
 
           <div className="flex items-center space-x-2">
+            <Input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept=".kt,.java,.xml,.gradle"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Upload className="w-4 h-4 mr-2" />
+                  Import
+                  <ChevronDown className="w-3 h-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={handleImportProject}>
+                  <FolderOpen className="w-4 h-4 mr-2" />
+                  Import Files
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Archive className="w-4 h-4 mr-2" />
+                  Import Project ZIP
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline">
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                  <ChevronDown className="w-3 h-3 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem onClick={() => handleExportProject("apk")}>
+                  <Smartphone className="w-4 h-4 mr-2" />
+                  Export APK
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportProject("aab")}>
+                  <Archive className="w-4 h-4 mr-2" />
+                  Export AAB
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExportProject("studio")}>
+                  <Code className="w-4 h-4 mr-2" />
+                  Android Studio Project
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportProject("source")}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Source Code ZIP
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button size="sm" variant="ghost">
               <Settings className="w-4 h-4" />
-            </Button>
-            <Button size="sm" variant="outline">
-              Export
             </Button>
           </div>
         </div>
       </header>
 
       <div className="flex h-[calc(100vh-73px)]">
-        {/* Left Sidebar - Components */}
-        <div className="w-64 border-r border-border/40 bg-card/30 p-4">
-          <h3 className="font-semibold mb-4 flex items-center">
-            <Layers className="w-4 h-4 mr-2" />
-            Components
-          </h3>
-          <div className="space-y-2">
-            <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
-              <div className="font-medium text-sm">Button</div>
-              <div className="text-xs text-muted-foreground">
-                Interactive button component
-              </div>
+        {/* Left Sidebar - Project Files & Components */}
+        <div className="w-64 border-r border-border/40 bg-card/30 p-4 overflow-y-auto">
+          {/* Project Files Section */}
+          <div className="mb-6">
+            <h3 className="font-semibold mb-3 flex items-center">
+              <FileCode className="w-4 h-4 mr-2" />
+              Project Files
+            </h3>
+            <div className="space-y-1 max-h-40 overflow-y-auto">
+              {projectFiles.length === 0 ? (
+                <div className="text-xs text-muted-foreground p-2 border border-dashed border-border/50 rounded">
+                  No files imported yet. Use Import button above.
+                </div>
+              ) : (
+                projectFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center p-2 text-xs bg-card/50 rounded hover:bg-card cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3 mr-2 text-muted-foreground" />
+                    <span className="truncate" title={file.name}>
+                      {file.name}
+                    </span>
+                  </div>
+                ))
+              )}
             </div>
-            <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
-              <div className="font-medium text-sm">Text View</div>
-              <div className="text-xs text-muted-foreground">
-                Display text content
+          </div>
+
+          {/* Components Section */}
+          <div>
+            <h3 className="font-semibold mb-4 flex items-center">
+              <Layers className="w-4 h-4 mr-2" />
+              Components
+            </h3>
+            <div className="space-y-2">
+              <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
+                <div className="font-medium text-sm">Button</div>
+                <div className="text-xs text-muted-foreground">
+                  Interactive button component
+                </div>
               </div>
-            </div>
-            <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
-              <div className="font-medium text-sm">Image View</div>
-              <div className="text-xs text-muted-foreground">
-                Display images
+              <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
+                <div className="font-medium text-sm">Text View</div>
+                <div className="text-xs text-muted-foreground">
+                  Display text content
+                </div>
+              </div>
+              <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
+                <div className="font-medium text-sm">Image View</div>
+                <div className="text-xs text-muted-foreground">
+                  Display images
+                </div>
+              </div>
+              <div className="p-3 border border-border/50 rounded-lg bg-card/50 hover:bg-card cursor-pointer transition-colors">
+                <div className="font-medium text-sm">Input Field</div>
+                <div className="text-xs text-muted-foreground">
+                  Text input component
+                </div>
               </div>
             </div>
           </div>
