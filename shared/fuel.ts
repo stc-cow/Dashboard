@@ -1,6 +1,7 @@
 export interface FuelSite {
   SiteName: string;
-  CityName: string;
+  CityName?: string;
+  RegionName?: string;
   NextFuelingPlan: string;
   lat: number;
   lng: number;
