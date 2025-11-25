@@ -4,13 +4,103 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>COW Fuel Dashboard</title>
-    <link rel="stylesheet" href="style.css" />
-    
-    <!-- Leaflet Map Library -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 1rem 2rem;
+        }
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .logo { display: flex; align-items: center; gap: 1rem; }
+        .logo-icon {
+            font-size: 2rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 0.5rem;
+            border-radius: 12px;
+            color: white;
+        }
+        .logo-text h1 { font-size: 1.5rem; color: #2d3748; margin-bottom: 0.2rem; }
+        .logo-text p { font-size: 0.875rem; color: #718096; }
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        .status-badge {
+            padding: 0.5rem 1rem;
+            background: rgba(34, 197, 94, 0.1);
+            color: #16a34a;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            border-radius: 20px;
+            font-size: 0.875rem;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 2rem; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card h3 { font-size: 1rem; margin-bottom: 1rem; }
+        .card .value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .card-urgent .value {
+            background: linear-gradient(135deg, #dc3545, #e74c3c);
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .subtitle { color: #718096; font-size: 0.875rem; }
+        .api-section {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 1.5rem;
+            border-radius: 16px;
+            margin-bottom: 2rem;
+        }
+        .endpoint {
+            background: #f8f9fa;
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 4px solid #007bff;
+            border-radius: 4px;
+        }
+        a { color: #007bff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
 </head>
-
 <body>
     <div class="header">
         <div class="header-content">
@@ -21,118 +111,159 @@
                     <p>Central Operations & Workflows</p>
                 </div>
             </div>
-            <div class="header-actions">
-                <button id="refreshBtn" class="btn btn-primary">
-                    <span id="refreshIcon">🔄</span> Refresh Data
-                </button>
-                <div class="status-badge" id="statusBadge">Live Data</div>
+            <div style="display: flex; align-items: center; gap: 1rem;">
+                <button class="btn" onclick="refreshData()">🔄 Refresh</button>
+                <div class="status-badge" id="status">Live Data</div>
             </div>
         </div>
     </div>
 
-    <div class="dashboard-container">
-        <!-- KPI Cards -->
+    <div class="container">
         <div class="cards">
-            <div class="card card-total" id="totalSites">
-                <div class="card-header">
-                    <h3>📊 Total Sites</h3>
-                </div>
-                <div class="card-content">
-                    <p class="value">0</p>
-                    <p class="subtitle">With fuel schedules</p>
-                </div>
+            <div class="card">
+                <h3>📊 Total Sites</h3>
+                <div class="value" id="totalSites">0</div>
+                <div class="subtitle">Fuel sites tracked</div>
             </div>
-
-            <div class="card card-urgent" id="needFuelToday">
-                <div class="card-header">
-                    <h3>🔴 Need Fuel Today</h3>
-                </div>
-                <div class="card-content">
-                    <p class="value">0</p>
-                    <p class="subtitle" id="overdueText">Including overdue</p>
-                </div>
+            <div class="card">
+                <h3>🔴 Need Fuel Today</h3>
+                <div class="value card-urgent" id="needFuelToday">0</div>
+                <div class="subtitle" id="overdueText">Including overdue</div>
             </div>
-
-            <div class="card card-warning" id="tomorrowFuel">
-                <div class="card-header">
-                    <h3>🟠 Tomorrow</h3>
-                </div>
-                <div class="card-content">
-                    <p class="value">0</p>
-                    <p class="subtitle">Sites due tomorrow</p>
-                </div>
+            <div class="card">
+                <h3>🟠 Tomorrow</h3>
+                <div class="value" id="tomorrow">0</div>
+                <div class="subtitle">Sites due tomorrow</div>
             </div>
-
-            <div class="card card-caution" id="afterTomorrowFuel">
-                <div class="card-header">
-                    <h3>🟡 After Tomorrow</h3>
-                </div>
-                <div class="card-content">
-                    <p class="value">0</p>
-                    <p class="subtitle">Next 2 days</p>
-                </div>
+            <div class="card">
+                <h3>🟡 After Tomorrow</h3>
+                <div class="value" id="afterTomorrow">0</div>
+                <div class="subtitle">Next 2 days</div>
             </div>
-
-            <div class="card card-success" id="allScheduled">
-                <div class="card-header">
-                    <h3>🟢 Scheduled</h3>
-                </div>
-                <div class="card-content">
-                    <p class="value">0</p>
-                    <p class="subtitle">Future dates</p>
-                </div>
+            <div class="card">
+                <h3>🟢 Scheduled</h3>
+                <div class="value" id="allScheduled">0</div>
+                <div class="subtitle">Future dates</div>
             </div>
         </div>
 
-        <!-- MAP -->
-        <div class="map-container">
-            <div class="map-header">
-                <h2>🗺️ Fuel Site Locations</h2>
-                <div class="map-legend">
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: #dc3545;"></span>
-                        Today/Overdue
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: #fd7e14;"></span>
-                        Tomorrow
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: #ffc107;"></span>
-                        After Tomorrow
-                    </div>
-                    <div class="legend-item">
-                        <span class="legend-color" style="background: #198754;"></span>
-                        Scheduled
-                    </div>
-                </div>
+        <div class="api-section">
+            <h2>🔗 API Endpoints</h2>
+            <div class="endpoint">
+                <strong>GET <a href="/api/ping" target="_blank">/api/ping</a></strong> - Health check
             </div>
-            <div id="map"></div>
+            <div class="endpoint">
+                <strong>GET <a href="/api/fuel/sites" target="_blank">/api/fuel/sites</a></strong> - Fuel sites data
+            </div>
+            <div class="endpoint">
+                <strong>GET <a href="/api/fuel/stats" target="_blank">/api/fuel/stats</a></strong> - Dashboard statistics
+            </div>
+            <div class="endpoint">
+                <strong>GET <a href="/data.json" target="_blank">/data.json</a></strong> - Raw JSON data
+            </div>
         </div>
 
-        <!-- Reports Section -->
-        <div class="reports-section">
-            <h2>📋 Quick Reports</h2>
-            <div class="reports-grid">
-                <div class="report-card">
-                    <h3>Today's Schedule</h3>
-                    <p>Sites requiring fuel today</p>
-                    <button onclick="downloadReport('today')" class="btn btn-outline">Download CSV</button>
-                </div>
-                <div class="report-card">
-                    <h3>Overdue Sites</h3>
-                    <p>Sites with missed fuel dates</p>
-                    <button onclick="downloadReport('pending')" class="btn btn-outline">Download CSV</button>
-                </div>
-                <div class="report-card">
-                    <h3>Complete Report</h3>
-                    <p>All fuel sites and schedules</p>
-                    <button onclick="downloadReport('complete')" class="btn btn-outline">Download CSV</button>
-                </div>
-            </div>
+        <div class="api-section">
+            <h3>📋 Site Information</h3>
+            <div id="sitesInfo">Loading sites...</div>
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        let fuelData = [];
+
+        async function loadData() {
+            try {
+                document.getElementById('status').textContent = 'Loading...';
+                
+                const [sitesResponse, statsResponse] = await Promise.all([
+                    fetch('/api/fuel/sites'),
+                    fetch('/api/fuel/stats')
+                ]);
+
+                if (!sitesResponse.ok || !statsResponse.ok) {
+                    throw new Error('Failed to fetch data');
+                }
+
+                const sitesData = await sitesResponse.json();
+                const statsData = await statsResponse.json();
+
+                if (sitesData.success) {
+                    fuelData = sitesData.data;
+                    updateSitesDisplay();
+                }
+
+                if (statsData.success) {
+                    updateKPICards(statsData.stats);
+                }
+
+                document.getElementById('status').textContent = 'Live Data';
+                document.getElementById('status').style.color = '#16a34a';
+            } catch (error) {
+                console.error('Error loading data:', error);
+                document.getElementById('status').textContent = 'Offline';
+                document.getElementById('status').style.color = '#dc2626';
+            }
+        }
+
+        function updateKPICards(stats) {
+            document.getElementById('totalSites').textContent = stats.totalSites || 0;
+            document.getElementById('needFuelToday').textContent = stats.needFuelToday || 0;
+            document.getElementById('tomorrow').textContent = stats.tomorrow || 0;
+            document.getElementById('afterTomorrow').textContent = stats.afterTomorrow || 0;
+            
+            const scheduled = (stats.totalSites || 0) - (stats.overdue || 0);
+            document.getElementById('allScheduled').textContent = scheduled;
+
+            const overdueText = document.getElementById('overdueText');
+            if (stats.overdue > 0) {
+                overdueText.textContent = `+${stats.overdue} overdue`;
+                overdueText.style.color = '#dc2626';
+            } else {
+                overdueText.textContent = 'All on schedule';
+                overdueText.style.color = '#16a34a';
+            }
+        }
+
+        function updateSitesDisplay() {
+            const sitesInfo = document.getElementById('sitesInfo');
+            if (!fuelData.length) {
+                sitesInfo.innerHTML = 'No sites data available';
+                return;
+            }
+
+            let html = '<table style="width: 100%; border-collapse: collapse;">';
+            html += '<tr style="background: #f8f9fa; font-weight: bold;"><th style="padding: 8px; text-align: left;">Site</th><th style="padding: 8px; text-align: left;">City</th><th style="padding: 8px; text-align: left;">Next Fuel Date</th></tr>';
+            
+            fuelData.forEach(site => {
+                const today = new Date();
+                const fuelDate = new Date(site.NextFuelingPlan);
+                const daysDiff = Math.ceil((fuelDate - today) / (1000 * 60 * 60 * 24));
+                
+                let statusColor = '#16a34a';
+                if (daysDiff < 0) statusColor = '#dc2626';
+                else if (daysDiff <= 1) statusColor = '#fd7e14';
+                
+                html += `<tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 8px;">${site.SiteName}</td>
+                    <td style="padding: 8px;">${site.CityName}</td>
+                    <td style="padding: 8px; color: ${statusColor};">${site.NextFuelingPlan}</td>
+                </tr>`;
+            });
+            html += '</table>';
+            
+            sitesInfo.innerHTML = html;
+        }
+
+        function refreshData() {
+            loadData();
+        }
+
+        // Load data on page load
+        loadData();
+        
+        // Auto-refresh every 5 minutes
+        setInterval(loadData, 5 * 60 * 1000);
+    </script>
 </body>
 </html>
