@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { 
-  FileDown, 
-  Calendar, 
-  AlertTriangle, 
+import {
+  FileDown,
+  Calendar,
+  AlertTriangle,
   FileText,
   Download,
   Filter,
-  RefreshCw 
+  RefreshCw,
 } from "lucide-react";
 import { FuelSite, FuelApiResponse } from "@shared/fuel";
 
@@ -23,7 +23,7 @@ export default function Reports() {
       setLoading(true);
       const response = await fetch("/api/fuel/sites");
       if (!response.ok) throw new Error("Failed to fetch data");
-      
+
       const data: FuelApiResponse = await response.json();
       if (data.success && data.data) {
         setSites(data.data);
@@ -40,16 +40,24 @@ export default function Reports() {
   }, []);
 
   const generateCSV = (data: FuelSite[], filename: string) => {
-    const headers = ["SiteName", "CityName", "NextFuelingPlan", "Latitude", "Longitude"];
+    const headers = [
+      "SiteName",
+      "CityName",
+      "NextFuelingPlan",
+      "Latitude",
+      "Longitude",
+    ];
     const csvContent = [
       headers.join(","),
-      ...data.map(site => [
-        site.SiteName,
-        site.CityName,
-        site.NextFuelingPlan,
-        site.lat.toString(),
-        site.lng.toString()
-      ].join(","))
+      ...data.map((site) =>
+        [
+          site.SiteName,
+          site.CityName,
+          site.NextFuelingPlan,
+          site.lat.toString(),
+          site.lng.toString(),
+        ].join(","),
+      ),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
@@ -67,12 +75,12 @@ export default function Reports() {
 
     switch (filter) {
       case "today":
-        return sites.filter(site => {
+        return sites.filter((site) => {
           const fuelDate = new Date(site.NextFuelingPlan);
           return fuelDate.toDateString() === today.toDateString();
         });
       case "pending":
-        return sites.filter(site => {
+        return sites.filter((site) => {
           const fuelDate = new Date(site.NextFuelingPlan);
           return fuelDate < today;
         });
@@ -104,7 +112,9 @@ export default function Reports() {
               onClick={fetchData}
               disabled={loading}
             >
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+              />
               Refresh Data
             </Button>
           </div>
@@ -218,9 +228,7 @@ export default function Reports() {
                 <Filter className="w-5 h-5 mr-2" />
                 Site Details
               </span>
-              <Badge variant="outline">
-                {sites.length} total sites
-              </Badge>
+              <Badge variant="outline">{sites.length} total sites</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -234,9 +242,13 @@ export default function Reports() {
                 {sites.map((site, index) => {
                   const today = new Date();
                   const fuelDate = new Date(site.NextFuelingPlan);
-                  const isToday = today.toDateString() === fuelDate.toDateString();
+                  const isToday =
+                    today.toDateString() === fuelDate.toDateString();
                   const isOverdue = fuelDate < today;
-                  const daysDiff = Math.ceil((fuelDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                  const daysDiff = Math.ceil(
+                    (fuelDate.getTime() - today.getTime()) /
+                      (1000 * 60 * 60 * 24),
+                  );
 
                   let statusColor = "bg-green-100 text-green-800";
                   let statusText = `${daysDiff} days`;
@@ -264,7 +276,8 @@ export default function Reports() {
                             {site.SiteName}
                           </h4>
                           <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {site.CityName} • {site.lat.toFixed(4)}, {site.lng.toFixed(4)}
+                            {site.CityName} • {site.lat.toFixed(4)},{" "}
+                            {site.lng.toFixed(4)}
                           </p>
                         </div>
                       </div>

@@ -60,7 +60,7 @@ export const handleGetFuelSites: RequestHandler = (req, res) => {
     // 1. Fetch from Google Sheets using the URL from your Python script
     // 2. Process the data similar to your clean_and_filter function
     // 3. Return the processed data
-    
+
     res.json({
       success: true,
       data: mockFuelData,
@@ -92,19 +92,19 @@ export const handleGetFuelStats: RequestHandler = (req, res) => {
     };
 
     const todayCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), today)
+      isSameDay(new Date(site.NextFuelingPlan), today),
     ).length;
 
     const tomorrowCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), tomorrow)
+      isSameDay(new Date(site.NextFuelingPlan), tomorrow),
     ).length;
 
     const afterTomorrowCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), afterTomorrow)
+      isSameDay(new Date(site.NextFuelingPlan), afterTomorrow),
     ).length;
 
     const overdueCount = mockFuelData.filter((site) =>
-      isOverdue(new Date(site.NextFuelingPlan))
+      isOverdue(new Date(site.NextFuelingPlan)),
     ).length;
 
     const stats = {

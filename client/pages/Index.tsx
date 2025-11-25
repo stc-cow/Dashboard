@@ -3,7 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FuelMap } from "@/components/FuelMap";
-import { Fuel, MapPin, Calendar, AlertTriangle, TrendingUp, RefreshCw } from "lucide-react";
+import {
+  Fuel,
+  MapPin,
+  Calendar,
+  AlertTriangle,
+  TrendingUp,
+  RefreshCw,
+} from "lucide-react";
 import { FuelSite, FuelStats, FuelApiResponse } from "@shared/fuel";
 
 export default function Index() {
@@ -60,8 +67,6 @@ export default function Index() {
     return () => clearInterval(interval);
   }, []);
 
-
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
       {/* Header */}
@@ -80,7 +85,8 @@ export default function Index() {
                   Central Operations & Workflows
                   {stats.lastUpdated && (
                     <span className="ml-2">
-                      • Last updated: {new Date(stats.lastUpdated).toLocaleTimeString()}
+                      • Last updated:{" "}
+                      {new Date(stats.lastUpdated).toLocaleTimeString()}
                     </span>
                   )}
                 </p>
@@ -93,10 +99,15 @@ export default function Index() {
                 onClick={fetchFuelData}
                 disabled={loading}
               >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                <RefreshCw
+                  className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
+                />
                 Refresh
               </Button>
-              <Badge variant="outline" className={`${error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+              <Badge
+                variant="outline"
+                className={`${error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}
+              >
                 {error ? "Offline" : "Live Data"}
               </Badge>
             </div>
@@ -216,11 +227,16 @@ export default function Index() {
               {sites.map((site, index) => {
                 const today = new Date();
                 const siteDate = new Date(site.NextFuelingPlan);
-                const isToday = today.toDateString() === siteDate.toDateString();
+                const isToday =
+                  today.toDateString() === siteDate.toDateString();
                 const isOverdue = siteDate < today;
-                const daysDiff = Math.ceil((siteDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                const daysDiff = Math.ceil(
+                  (siteDate.getTime() - today.getTime()) /
+                    (1000 * 60 * 60 * 24),
+                );
 
-                let statusColor = "bg-green-100 text-green-800 border-green-200";
+                let statusColor =
+                  "bg-green-100 text-green-800 border-green-200";
                 let statusText = `${daysDiff} days`;
 
                 if (isOverdue) {
@@ -230,10 +246,12 @@ export default function Index() {
                   statusColor = "bg-red-100 text-red-800 border-red-200";
                   statusText = "Today";
                 } else if (daysDiff === 1) {
-                  statusColor = "bg-orange-100 text-orange-800 border-orange-200";
+                  statusColor =
+                    "bg-orange-100 text-orange-800 border-orange-200";
                   statusText = "Tomorrow";
                 } else if (daysDiff === 2) {
-                  statusColor = "bg-yellow-100 text-yellow-800 border-yellow-200";
+                  statusColor =
+                    "bg-yellow-100 text-yellow-800 border-yellow-200";
                   statusText = "2 days";
                 }
 

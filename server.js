@@ -1,63 +1,63 @@
-const http = require('http');
-const url = require('url');
+const http = require("http");
+const url = require("url");
 
 // Mock fuel data
 const FUEL_DATA = [
   {
     SiteName: "COW552",
-    CityName: "Riyadh", 
+    CityName: "Riyadh",
     NextFuelingPlan: "2025-01-19",
     lat: 24.7136,
-    lng: 46.6753
+    lng: 46.6753,
   },
   {
     SiteName: "COW910",
     CityName: "Jeddah",
     NextFuelingPlan: "2025-01-20",
     lat: 21.4858,
-    lng: 39.1925
+    lng: 39.1925,
   },
   {
-    SiteName: "COW777", 
+    SiteName: "COW777",
     CityName: "Buraydah",
     NextFuelingPlan: "2025-01-21",
     lat: 26.332,
-    lng: 43.9736
+    lng: 43.9736,
   },
   {
     SiteName: "COW123",
     CityName: "Riyadh",
-    NextFuelingPlan: "2025-01-18", 
+    NextFuelingPlan: "2025-01-18",
     lat: 24.7136,
-    lng: 46.6753
-  }
+    lng: 46.6753,
+  },
 ];
 
 function corsHeaders(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 }
 
 function calculateStats(data) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
-  
+
   const afterTomorrow = new Date(today);
   afterTomorrow.setDate(afterTomorrow.getDate() + 2);
-  
+
   let todayCount = 0;
-  let tomorrowCount = 0; 
+  let tomorrowCount = 0;
   let afterTomorrowCount = 0;
   let overdueCount = 0;
-  
-  data.forEach(site => {
+
+  data.forEach((site) => {
     const siteDate = new Date(site.NextFuelingPlan);
     siteDate.setHours(0, 0, 0, 0);
-    
+
     if (siteDate.getTime() === today.getTime()) {
       todayCount++;
     } else if (siteDate.getTime() === tomorrow.getTime()) {
@@ -68,56 +68,56 @@ function calculateStats(data) {
       overdueCount++;
     }
   });
-  
+
   return {
     totalSites: data.length,
     needFuelToday: todayCount,
     tomorrow: tomorrowCount,
     afterTomorrow: afterTomorrowCount,
     overdue: overdueCount,
-    lastUpdated: new Date().toISOString()
+    lastUpdated: new Date().toISOString(),
   };
 }
 
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
-  
+
   corsHeaders(res);
-  
-  if (req.method === 'OPTIONS') {
+
+  if (req.method === "OPTIONS") {
     res.writeHead(200);
     res.end();
     return;
   }
-  
-  res.setHeader('Content-Type', 'application/json');
-  
+
+  res.setHeader("Content-Type", "application/json");
+
   let response;
-  
-  if (path === '/api/ping') {
+
+  if (path === "/api/ping") {
     response = {
       message: "COW Fuel Dashboard Server is running!",
       timestamp: new Date().toISOString(),
       status: "healthy",
-      server: "Node.js"
+      server: "Node.js",
     };
-  } else if (path === '/api/fuel/sites') {
+  } else if (path === "/api/fuel/sites") {
     response = {
       success: true,
       data: FUEL_DATA,
       count: FUEL_DATA.length,
-      lastUpdated: new Date().toISOString()
+      lastUpdated: new Date().toISOString(),
     };
-  } else if (path === '/api/fuel/stats') {
+  } else if (path === "/api/fuel/stats") {
     response = {
       success: true,
-      stats: calculateStats(FUEL_DATA)
+      stats: calculateStats(FUEL_DATA),
     };
-  } else if (path === '/data.json') {
+  } else if (path === "/data.json") {
     response = FUEL_DATA;
-  } else if (path === '/') {
-    res.setHeader('Content-Type', 'text/html');
+  } else if (path === "/") {
+    res.setHeader("Content-Type", "text/html");
     res.writeHead(200);
     res.end(`
 <!DOCTYPE html>
@@ -159,18 +159,23 @@ const server = http.createServer((req, res) => {
   } else {
     response = {
       error: "Endpoint not found",
-      availableEndpoints: ["/api/ping", "/api/fuel/sites", "/api/fuel/stats", "/data.json"],
-      timestamp: new Date().toISOString()
+      availableEndpoints: [
+        "/api/ping",
+        "/api/fuel/sites",
+        "/api/fuel/stats",
+        "/data.json",
+      ],
+      timestamp: new Date().toISOString(),
     };
   }
-  
+
   res.writeHead(200);
   res.end(JSON.stringify(response, null, 2));
 });
 
 const PORT = process.env.PORT || 8080;
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`
 🚀 COW Fuel Dashboard Server Started
 📡 Port: ${PORT}
@@ -181,8 +186,8 @@ server.listen(PORT, '0.0.0.0', () => {
   `);
 });
 
-server.on('error', (err) => {
-  if (err.code === 'EADDRINUSE') {
+server.on("error", (err) => {
+  if (err.code === "EADDRINUSE") {
     console.log(`❌ Error: Port ${PORT} is already in use!`);
   } else {
     console.log(`❌ Server error: ${err.message}`);
