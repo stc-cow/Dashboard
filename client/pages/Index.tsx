@@ -3,13 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FuelMap } from "@/components/FuelMap";
-import { CentralRegionCard } from "@/components/CentralRegionCard";
 import {
   Fuel,
   MapPin,
-  Calendar,
   AlertTriangle,
-  TrendingUp,
   RefreshCw,
 } from "lucide-react";
 import { FuelSite, FuelStats, FuelApiResponse } from "@shared/fuel";
@@ -36,7 +33,6 @@ export default function Index() {
       setLoading(true);
       setError(null);
 
-      // Fetch all data in parallel
       const [sitesResponse, centralResponse, todayResponse, statsResponse] =
         await Promise.all([
           fetch("/api/fuel/sites"),
@@ -62,7 +58,6 @@ export default function Index() {
       if (sitesData.success && sitesData.data) {
         setSites(sitesData.data);
 
-        // Categorize sites by fueling date
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
@@ -112,316 +107,153 @@ export default function Index() {
   useEffect(() => {
     fetchFuelData();
 
-    // Auto-refresh every 5 minutes
     const interval = setInterval(fetchFuelData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-gray-900 flex flex-col">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 dark:bg-slate-900/80 dark:border-slate-700">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                <Fuel className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  COW Fuel Dashboard
-                </h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Central Operations & Workflows
-                  {stats.lastUpdated && (
-                    <span className="ml-2">
-                      • Last updated:{" "}
-                      {new Date(stats.lastUpdated).toLocaleTimeString()}
-                    </span>
-                  )}
-                </p>
-              </div>
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b border-blue-700">
+        <div className="px-6 py-4 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+              <Fuel className="w-6 h-6" />
             </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={fetchFuelData}
-                disabled={loading}
-              >
-                <RefreshCw
-                  className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`}
-                />
-                Refresh
-              </Button>
-              <Badge
-                variant="outline"
-                className={`${error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}
-              >
-                {error ? "Offline" : "Live Data"}
-              </Badge>
+            <div>
+              <h1 className="text-2xl font-bold">COW Fuel Dashboard</h1>
+              <p className="text-blue-100 text-sm">Central Operations & Workflows</p>
             </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Button
+              size="sm"
+              onClick={fetchFuelData}
+              disabled={loading}
+              className="bg-white/20 hover:bg-white/30"
+            >
+              <RefreshCw
+                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+              />
+            </Button>
+            <Badge className="bg-green-500 text-white">
+              {error ? "Offline" : "Live"}
+            </Badge>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        {/* Error State */}
-        {error && (
-          <Card className="mb-6 bg-red-50 border-red-200">
-            <CardContent className="pt-6">
-              <div className="flex items-center text-red-700">
-                <AlertTriangle className="w-5 h-5 mr-2" />
-                <span>Failed to load fuel data: {error}</span>
+      {/* Main Content - Two Column Layout */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Sidebar */}
+        <div className="w-96 bg-gray-100 border-r border-gray-300 overflow-y-auto">
+          <div className="p-6 space-y-6">
+            {/* Error State */}
+            {error && (
+              <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
+                <p className="text-red-700 text-sm">{error}</p>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
 
-        {/* Loading State */}
-        {loading && sites.length === 0 && (
-          <Card className="mb-6">
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-center text-gray-500">
-                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
-                <span>Loading fuel dashboard data...</span>
+            {/* Loading State */}
+            {loading && sites.length === 0 && (
+              <div className="flex items-center justify-center py-8">
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin text-gray-600" />
+                <span className="text-gray-600">Loading data...</span>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            )}
 
-        {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
-          <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-gray-600 dark:text-gray-400 flex items-center">
-                <TrendingUp className="w-4 h-4 mr-2" />
-                Total Sites
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-gray-900 dark:text-white">
-                {stats.totalSites}
+            {/* Central Region Stats */}
+            <div>
+              <h2 className="text-xl font-bold text-gray-900 mb-4">
+                Central sites
+              </h2>
+              
+              <div className="space-y-3">
+                {/* Due and Today */}
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-gray-600 text-sm font-medium mb-2">
+                    Due and today fueling
+                  </p>
+                  <p className="text-4xl font-bold text-gray-900">
+                    {todaySites.length}
+                  </p>
+                </div>
+
+                {/* Tomorrow */}
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-gray-600 text-sm font-medium mb-2">
+                    Tomorrow sites need fueling
+                  </p>
+                  <p className="text-4xl font-bold text-gray-900">
+                    {tomorrowSites.length}
+                  </p>
+                </div>
+
+                {/* After Tomorrow */}
+                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                  <p className="text-gray-600 text-sm font-medium mb-2">
+                    After tomorrow sites need fuel
+                  </p>
+                  <p className="text-4xl font-bold text-gray-900">
+                    {afterTomorrowSites.length}
+                  </p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-red-100 flex items-center">
-                <AlertTriangle className="w-4 h-4 mr-2" />
-                Due & Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.needFuelToday}</div>
-              {stats.overdue > 0 && (
-                <p className="text-sm text-red-100 mt-1">
-                  +{stats.overdue} overdue
-                </p>
-              )}
-            </CardContent>
-          </Card>
+            {/* Sites Table */}
+            {todaySites.length > 0 && (
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-3">
+                  Sites Due Today
+                </h3>
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left py-2 px-3 font-semibold text-gray-700">
+                          Site Name
+                        </th>
+                        <th className="text-left py-2 px-3 font-semibold text-gray-700">
+                          Fueling Date
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {todaySites.slice(0, 10).map((site, index) => (
+                        <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-900 font-medium text-xs">
+                            {site.SiteName}
+                          </td>
+                          <td className="py-2 px-3 text-gray-600 text-xs">
+                            {site.NextFuelingPlan}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {todaySites.length > 10 && (
+                    <div className="p-3 bg-gray-50 text-center text-sm text-gray-600">
+                      +{todaySites.length - 10} more sites
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
-          <Card className="bg-gradient-to-br from-orange-500 to-orange-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-orange-100 flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                Tomorrow
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.tomorrow}</div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-yellow-500 to-yellow-600 text-white border-0 shadow-lg hover:shadow-xl transition-all duration-200">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-yellow-100 flex items-center">
-                <Calendar className="w-4 h-4 mr-2" />
-                After Tomorrow
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold">{stats.afterTomorrow}</div>
-            </CardContent>
-          </Card>
-
-          <CentralRegionCard
-            sites={centralSites}
+        {/* Right Side - Map */}
+        <div className="flex-1 bg-gray-800">
+          <FuelMap
+            sites={sites}
             todaySites={todaySites}
             tomorrowSites={tomorrowSites}
             afterTomorrowSites={afterTomorrowSites}
           />
         </div>
-
-        {/* Map Container */}
-        <FuelMap
-          sites={sites}
-          todaySites={todaySites}
-          tomorrowSites={tomorrowSites}
-          afterTomorrowSites={afterTomorrowSites}
-        />
-
-        {/* Due & Today Sites List */}
-        {todaySites.length > 0 && (
-          <Card className="mt-8 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-gray-900 dark:text-white flex items-center">
-                <AlertTriangle className="w-5 h-5 mr-2 text-red-600" />
-                Sites Due Today & Overdue ({todaySites.length})
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 dark:border-slate-600">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">
-                        Site Name
-                      </th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">
-                        Region/City
-                      </th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">
-                        Fueling Date
-                      </th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-700 dark:text-gray-300">
-                        Status
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {todaySites.map((site, index) => {
-                      const today = new Date();
-                      const siteDate = new Date(site.NextFuelingPlan);
-                      const isOverdue = siteDate < today;
-
-                      return (
-                        <tr
-                          key={index}
-                          className="border-b border-gray-100 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800/50"
-                        >
-                          <td className="py-3 px-4 font-medium text-gray-900 dark:text-white">
-                            {site.SiteName}
-                          </td>
-                          <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                            {site.CityName}
-                          </td>
-                          <td className="py-3 px-4 text-gray-600 dark:text-gray-400">
-                            {site.NextFuelingPlan}
-                          </td>
-                          <td className="py-3 px-4">
-                            <Badge
-                              className={
-                                isOverdue
-                                  ? "bg-red-100 text-red-800 border-red-200"
-                                  : "bg-red-100 text-red-800 border-red-200"
-                              }
-                            >
-                              {isOverdue ? "OVERDUE" : "TODAY"}
-                            </Badge>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Full Schedule Overview */}
-        <Card className="mt-8 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="text-gray-900 dark:text-white">
-              Complete Fuel Schedule
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {/* Tomorrow Section */}
-              {tomorrowSites.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-orange-600 dark:text-orange-400 mb-3 flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-orange-500 mr-2"></span>
-                    Tomorrow ({tomorrowSites.length})
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {tomorrowSites.map((site, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-orange-50 dark:bg-slate-800 rounded-lg border border-orange-200 dark:border-orange-900/30"
-                      >
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {site.SiteName}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {site.CityName}
-                        </p>
-                        <p className="text-sm text-orange-700 dark:text-orange-300 mt-1">
-                          📅 {site.NextFuelingPlan}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* After Tomorrow Section */}
-              {afterTomorrowSites.length > 0 && (
-                <div>
-                  <h3 className="font-semibold text-yellow-600 dark:text-yellow-400 mb-3 flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-yellow-500 mr-2"></span>
-                    After Tomorrow ({afterTomorrowSites.length})
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {afterTomorrowSites.map((site, index) => (
-                      <div
-                        key={index}
-                        className="p-3 bg-yellow-50 dark:bg-slate-800 rounded-lg border border-yellow-200 dark:border-yellow-900/30"
-                      >
-                        <p className="font-medium text-gray-900 dark:text-white">
-                          {site.SiteName}
-                        </p>
-                        <p className="text-sm text-gray-600 dark:text-gray-400">
-                          {site.CityName}
-                        </p>
-                        <p className="text-sm text-yellow-700 dark:text-yellow-300 mt-1">
-                          📅 {site.NextFuelingPlan}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Scheduled Section */}
-              {sites.length -
-                todaySites.length -
-                tomorrowSites.length -
-                afterTomorrowSites.length >
-                0 && (
-                <div>
-                  <h3 className="font-semibold text-green-600 dark:text-green-400 mb-3 flex items-center">
-                    <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
-                    Scheduled (3+ days -{" "}
-                    {sites.length -
-                      todaySites.length -
-                      tomorrowSites.length -
-                      afterTomorrowSites.length}
-                    )
-                  </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    All other sites are scheduled for fuel in 3+ days.
-                  </p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+      </div>
     </div>
   );
 }
