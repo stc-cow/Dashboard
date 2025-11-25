@@ -1,10 +1,27 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FuelMap } from "@/components/FuelMap";
-import { Fuel, MapPin, AlertTriangle, RefreshCw } from "lucide-react";
-import { FuelSite, FuelStats, FuelApiResponse } from "@shared/fuel";
+import { Fuel, RefreshCw, MapPin, AlertTriangle, CalendarDays } from "lucide-react";
+import { FuelSite, FuelStats } from "@shared/fuel";
+import { ProcessedFuelData } from "@shared/sheets-parser";
+
+interface FuelOverviewResponse {
+  success: boolean;
+  data?: ProcessedFuelData;
+  error?: string;
+  lastUpdated?: string;
+}
+
+const isCentralRegion = (site: FuelSite) =>
+  site.RegionName?.toLowerCase().includes("central") ?? false;
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return dateString;
+  return date.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+};
 
 export default function Index() {
   const [sites, setSites] = useState<FuelSite[]>([]);
@@ -20,6 +37,7 @@ export default function Index() {
     overdue: 0,
     lastUpdated: "",
   });
+  const [lastUpdated, setLastUpdated] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,69 +46,43 @@ export default function Index() {
       setLoading(true);
       setError(null);
 
-      const [sitesResponse, centralResponse, todayResponse, statsResponse] =
-        await Promise.all([
-          fetch("/api/fuel/sites"),
-          fetch("/api/fuel/central"),
-          fetch("/api/fuel/today"),
-          fetch("/api/fuel/stats"),
-        ]);
-
-      if (
-        !sitesResponse.ok ||
-        !centralResponse.ok ||
-        !todayResponse.ok ||
-        !statsResponse.ok
-      ) {
+      const response = await fetch("/api/fuel/overview");
+      if (!response.ok) {
         throw new Error("Failed to fetch fuel data");
       }
 
-      const sitesData: FuelApiResponse = await sitesResponse.json();
-      const centralData: FuelApiResponse = await centralResponse.json();
-      const todayData: FuelApiResponse = await todayResponse.json();
-      const statsData: FuelApiResponse = await statsResponse.json();
-
-      if (sitesData.success && sitesData.data) {
-        setSites(sitesData.data);
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
-
-        const afterTomorrow = new Date(today);
-        afterTomorrow.setDate(afterTomorrow.getDate() + 2);
-
-        const todayList: FuelSite[] = [];
-        const tomorrowList: FuelSite[] = [];
-        const afterTomorrowList: FuelSite[] = [];
-
-        sitesData.data.forEach((site) => {
-          const siteDate = new Date(site.NextFuelingPlan);
-          siteDate.setHours(0, 0, 0, 0);
-
-          if (siteDate < today || siteDate.getTime() === today.getTime()) {
-            todayList.push(site);
-          } else if (siteDate.getTime() === tomorrow.getTime()) {
-            tomorrowList.push(site);
-          } else if (siteDate.getTime() === afterTomorrow.getTime()) {
-            afterTomorrowList.push(site);
-          }
-        });
-
-        setTodaySites(todayList);
-        setTomorrowSites(tomorrowList);
-        setAfterTomorrowSites(afterTomorrowList);
+      const payload: FuelOverviewResponse = await response.json();
+      if (!payload.success || !payload.data) {
+        throw new Error(payload.error || "Failed to fetch fuel data");
       }
 
-      if (centralData.success && centralData.data) {
-        setCentralSites(centralData.data);
-      }
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-      if (statsData.success && statsData.stats) {
-        setStats(statsData.stats);
-      }
+      const centralOnly = payload.data.centralSites.filter(isCentralRegion);
+      const centralToday = payload.data.today.filter(isCentralRegion);
+      const centralTomorrow = payload.data.tomorrow.filter(isCentralRegion);
+      const centralAfterTomorrow = payload.data.afterTomorrow.filter(isCentralRegion);
+      const overdueCount = centralToday.filter((site) => {
+        const fuelingDate = new Date(site.NextFuelingPlan);
+        fuelingDate.setHours(0, 0, 0, 0);
+        return fuelingDate < today;
+      }).length;
+
+      setSites(payload.data.sites);
+      setCentralSites(centralOnly);
+      setTodaySites(centralToday);
+      setTomorrowSites(centralTomorrow);
+      setAfterTomorrowSites(centralAfterTomorrow);
+      setStats({
+        totalSites: centralOnly.length,
+        needFuelToday: centralToday.length,
+        tomorrow: centralTomorrow.length,
+        afterTomorrow: centralAfterTomorrow.length,
+        overdue: overdueCount,
+        lastUpdated: payload.lastUpdated || new Date().toISOString(),
+      });
+      setLastUpdated(payload.lastUpdated || new Date().toISOString());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load data");
       console.error("Error fetching fuel data:", err);
@@ -101,14 +93,24 @@ export default function Index() {
 
   useEffect(() => {
     fetchFuelData();
-
     const interval = setInterval(fetchFuelData, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
+  const centralDueList = useMemo(
+    () =>
+      todaySites
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(a.NextFuelingPlan).getTime() -
+            new Date(b.NextFuelingPlan).getTime(),
+        ),
+    [todaySites],
+  );
+
   return (
     <div className="min-h-screen bg-gray-900 flex flex-col">
-      {/* Header */}
       <header className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-b border-blue-700">
         <div className="px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -117,42 +119,37 @@ export default function Index() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">COW Fuel Dashboard</h1>
-              <p className="text-blue-100 text-sm">
-                Central Operations & Workflows
-              </p>
+              <p className="text-blue-100 text-sm">Central Operations & Workflows</p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
+            {lastUpdated && (
+              <span className="text-sm text-blue-100">Updated {formatDate(lastUpdated)}</span>
+            )}
             <Button
               size="sm"
               onClick={fetchFuelData}
               disabled={loading}
               className="bg-white/20 hover:bg-white/30"
             >
-              <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </Button>
-            <Badge className="bg-green-500 text-white">
+            <Badge className={`text-white ${error ? "bg-red-500" : "bg-green-500"}`}>
               {error ? "Offline" : "Live"}
             </Badge>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Two Column Layout */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
-        <div className="w-96 bg-gray-100 border-r border-gray-300 overflow-y-auto">
+        <div className="w-[430px] bg-gray-100 border-r border-gray-300 overflow-y-auto">
           <div className="p-6 space-y-6">
-            {/* Error State */}
             {error && (
               <div className="p-4 bg-red-100 border border-red-300 rounded-lg">
                 <p className="text-red-700 text-sm">{error}</p>
               </div>
             )}
 
-            {/* Loading State */}
             {loading && sites.length === 0 && (
               <div className="flex items-center justify-center py-8">
                 <RefreshCw className="w-5 h-5 mr-2 animate-spin text-gray-600" />
@@ -160,94 +157,91 @@ export default function Index() {
               </div>
             )}
 
-            {/* Central Region Stats */}
-            <div>
-              <h2 className="text-xl font-bold text-gray-900 mb-4">
-                Central sites
-              </h2>
-
-              <div className="space-y-3">
-                {/* Due and Today */}
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <p className="text-gray-600 text-sm font-medium mb-2">
-                    Due and today fueling
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900">
-                    {todaySites.length}
-                  </p>
+            <Card className="bg-white shadow-sm border border-gray-200">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center text-gray-900">
+                  <MapPin className="w-5 h-5 mr-2 text-blue-600" />
+                  Total Central sites
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-5xl font-bold text-gray-900">{centralSites.length}</p>
+                  <Badge variant="outline" className="text-xs text-blue-700 border-blue-200 bg-blue-50">
+                    Central region only
+                  </Badge>
                 </div>
+                <p className="text-sm text-gray-600 mt-2">
+                  Pulled directly from the Google Sheet (columns B, D, L, M, AJ)
+                </p>
+              </CardContent>
+            </Card>
 
-                {/* Tomorrow */}
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <p className="text-gray-600 text-sm font-medium mb-2">
-                    Tomorrow sites need fueling
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900">
-                    {tomorrowSites.length}
-                  </p>
-                </div>
-
-                {/* After Tomorrow */}
-                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                  <p className="text-gray-600 text-sm font-medium mb-2">
-                    After tomorrow sites need fuel
-                  </p>
-                  <p className="text-4xl font-bold text-gray-900">
-                    {afterTomorrowSites.length}
-                  </p>
-                </div>
-              </div>
+            <div className="grid grid-cols-3 gap-3">
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardContent className="pt-4 pb-5">
+                  <p className="text-xs text-gray-600">Due and today fueling</p>
+                  <div className="text-3xl font-bold text-red-600 mt-2 flex items-center">
+                    <AlertTriangle className="w-5 h-5 mr-2" />
+                    {stats.needFuelToday}
+                  </div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardContent className="pt-4 pb-5">
+                  <p className="text-xs text-gray-600">Tomorrow sites need fueling</p>
+                  <div className="text-3xl font-bold text-orange-500 mt-2">{stats.tomorrow}</div>
+                </CardContent>
+              </Card>
+              <Card className="bg-white shadow-sm border border-gray-200">
+                <CardContent className="pt-4 pb-5">
+                  <p className="text-xs text-gray-600">After tomorrow sites need fuel</p>
+                  <div className="text-3xl font-bold text-amber-500 mt-2">{stats.afterTomorrow}</div>
+                </CardContent>
+              </Card>
             </div>
 
-            {/* Sites Table */}
-            {todaySites.length > 0 && (
-              <div>
-                <h3 className="text-lg font-bold text-gray-900 mb-3">
-                  Sites Due Today
-                </h3>
-                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200 bg-gray-50">
-                        <th className="text-left py-2 px-3 font-semibold text-gray-700">
-                          Site Name
-                        </th>
-                        <th className="text-left py-2 px-3 font-semibold text-gray-700">
-                          Fueling Date
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {todaySites.slice(0, 10).map((site, index) => (
-                        <tr
-                          key={index}
-                          className="border-b border-gray-200 hover:bg-gray-50"
-                        >
-                          <td className="py-2 px-3 text-gray-900 font-medium text-xs">
-                            {site.SiteName}
-                          </td>
-                          <td className="py-2 px-3 text-gray-600 text-xs">
-                            {site.NextFuelingPlan}
-                          </td>
+            <Card className="bg-white shadow-sm border border-gray-200">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-gray-900">
+                  <CalendarDays className="w-5 h-5 mr-2 text-indigo-600" />
+                  Due & Today fueling list (Central)
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {centralDueList.length === 0 ? (
+                  <p className="text-sm text-gray-600">No central sites are due today.</p>
+                ) : (
+                  <div className="border border-gray-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50">
+                          <th className="text-left py-2 px-3 font-semibold text-gray-700">Site Name</th>
+                          <th className="text-left py-2 px-3 font-semibold text-gray-700">Fueling Date</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {todaySites.length > 10 && (
-                    <div className="p-3 bg-gray-50 text-center text-sm text-gray-600">
-                      +{todaySites.length - 10} more sites
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+                      </thead>
+                      <tbody>
+                        {centralDueList.map((site, index) => (
+                          <tr
+                            key={`${site.SiteName}-${index}`}
+                            className="border-b border-gray-200 hover:bg-gray-50"
+                          >
+                            <td className="py-2 px-3 text-gray-900 font-medium text-xs">{site.SiteName}</td>
+                            <td className="py-2 px-3 text-gray-700 text-xs">{formatDate(site.NextFuelingPlan)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </div>
         </div>
 
-        {/* Right Side - Map */}
         <div className="flex-1 bg-gray-800">
           <FuelMap
-            sites={sites}
+            sites={centralSites}
             todaySites={todaySites}
             tomorrowSites={tomorrowSites}
             afterTomorrowSites={afterTomorrowSites}
