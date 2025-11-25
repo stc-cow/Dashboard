@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 
 export default defineConfig({
+  base: process.env.NODE_ENV === "production" ? "/Dashboard/" : "/",
   plugins: [react()],
   resolve: {
     alias: {
@@ -12,7 +13,7 @@ export default defineConfig({
   },
   root: "./client",
   build: {
-    outDir: "../dist/spa",
+    outDir: "../dist",
     emptyOutDir: true,
   },
   server: {
