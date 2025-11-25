@@ -84,11 +84,35 @@ function calculateFuelStatus(fuelingDate) {
   return "future";
 }
 
-async function fetchAndParseSheet() {
+async function fetchAndParseSheet(urlToFetch = SHEET_URL, redirectCount = 0) {
   try {
     const https = require("https");
     return new Promise((resolve, reject) => {
-      const req = https.get(SHEET_URL, (response) => {
+      const req = https.get(urlToFetch, (response) => {
+        // Handle redirects (301, 302, 307, 308)
+        if ([301, 302, 307, 308].includes(response.statusCode)) {
+          if (redirectCount >= 5) {
+            reject(new Error("Too many redirects"));
+            return;
+          }
+
+          const redirectUrl = response.headers.location;
+          if (!redirectUrl) {
+            reject(
+              new Error(
+                `Redirect without location header: ${response.statusCode}`,
+              ),
+            );
+            return;
+          }
+
+          console.log(
+            `🔄 Following redirect ${response.statusCode} to: ${redirectUrl}`,
+          );
+          resolve(fetchAndParseSheet(redirectUrl, redirectCount + 1));
+          return;
+        }
+
         if (response.statusCode !== 200) {
           reject(
             new Error(
