@@ -125,16 +125,16 @@ def clean_and_filter(df):
             "lat": getattr(row, 'lat', 24.7136),  # Default to Riyadh
             "lng": getattr(row, 'lng', 46.6753)   # Default to Riyadh
         })
-    
+
     return data
 
 def generate_reports(data):
     """Generate today's and pending fueling reports."""
     today = pd.to_datetime(datetime.today().date())
-    
+
     df = pd.DataFrame(data)
     df['NextFuelingPlan'] = pd.to_datetime(df['NextFuelingPlan'])
-    
+
     df_today = df[df['NextFuelingPlan'] == today]
     df_pending = df[df['NextFuelingPlan'] < today]
 
@@ -159,7 +159,7 @@ def calculate_stats(data):
 
     for site in data:
         site_date = pd.to_datetime(site['NextFuelingPlan']).date()
-        
+
         if site_date == today:
             today_count += 1
         elif site_date == tomorrow.date():
@@ -239,12 +239,15 @@ def serve_static(filename):
 if __name__ == "__main__":
     print("\n🚀 Starting COW Fuel Dashboard Server...")
     print("Loading Central Fuel Plan database...")
-    
+
     # Generate initial reports
     generate_reports(fuel_data)
-    
+
+    # Get port from environment variable or default to 8080
+    port = int(os.environ.get('PORT', 8080))
+
     print(f"✅ Loaded {len(fuel_data)} fuel sites")
-    print("🌐 Starting web server...")
+    print(f"🌐 Starting web server on port {port}...")
     print("📊 Dashboard endpoints:")
     print("   - GET /              - Main dashboard")
     print("   - GET /api/ping      - Health check")
@@ -252,5 +255,5 @@ if __name__ == "__main__":
     print("   - GET /api/fuel/stats - Get statistics")
     print("   - GET /api/fuel/refresh - Refresh data")
     print()
-    
-    app.run(host='0.0.0.0', port=8080, debug=True)
+
+    app.run(host='0.0.0.0', port=port, debug=False)
