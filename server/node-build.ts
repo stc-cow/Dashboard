@@ -10,6 +10,9 @@ app.listen(PORT, () => {
   console.log(`🔗 API endpoints:`);
   console.log(`   - GET /api/ping - Health check`);
   console.log(`   - GET /api/demo - Demo endpoint`);
-  console.log(`   - GET /api/fuel/sites - Get fuel sites`);
-  console.log(`   - GET /api/fuel/stats - Get fuel statistics`);
+  console.log(`   - GET /api/fuel/sites - All sites`);
+  console.log(`   - GET /api/fuel/central - Central-only sites`);
+  console.log(`   - GET /api/fuel/today - Due and today sites`);
+  console.log(`   - GET /api/fuel/stats - Fuel statistics`);
+  console.log(`   - GET /api/fuel/overview - Combined payload`);
 });

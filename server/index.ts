@@ -1,6 +1,12 @@
 import express from "express";
 import cors from "cors";
-import { handleGetFuelSites, handleGetFuelStats } from "./routes/fuel";
+import {
+  handleFuelOverview,
+  handleGetCentralSites,
+  handleGetFuelSites,
+  handleGetFuelStats,
+  handleGetFuelToday,
+} from "./routes/fuel";
 import { handleDemo } from "./routes/demo";
 
 export function createServer() {
@@ -19,7 +25,10 @@ export function createServer() {
 
   // Fuel dashboard API routes
   app.get("/api/fuel/sites", handleGetFuelSites);
+  app.get("/api/fuel/central", handleGetCentralSites);
+  app.get("/api/fuel/today", handleGetFuelToday);
   app.get("/api/fuel/stats", handleGetFuelStats);
+  app.get("/api/fuel/overview", handleFuelOverview);
 
   return app;
 }
