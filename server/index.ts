@@ -5,7 +5,7 @@ import { handleDemo } from "./routes/demo";
 
 export function createServer() {
   const app = express();
-  
+
   app.use(cors());
   app.use(express.json());
 
@@ -25,10 +25,10 @@ export function createServer() {
 }
 
 // Start server if running directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (require.main === module) {
   const app = createServer();
   const PORT = process.env.PORT || 8080;
-  
+
   app.listen(PORT, () => {
     console.log(`🚀 Fuel Dashboard Server running on port ${PORT}`);
   });
