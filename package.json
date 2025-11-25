@@ -7,12 +7,27 @@
     "dev:server": "node server.js",
     "dev:client": "vite --port 3000",
     "start": "node server.js",
-    "test": "node --version && echo 'Node.js is available'",
+    "test": "npm run build",
     "install": "echo 'No dependencies needed'",
-    "setup": "echo 'Setup complete'"
+    "setup": "echo 'Setup complete'",
+    "build": "vite build"
   },
-  "dependencies": {},
-  "devDependencies": {},
+  "dependencies": {
+    "@tanstack/react-query": "^5.56.2",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^0.446.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.12",
+    "@types/react": "^18.3.5",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react-swc": "^3.7.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.1"
+  },
   "engines": {
     "node": ">=16.0.0"
   }
