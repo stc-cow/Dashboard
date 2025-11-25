@@ -356,25 +356,6 @@ const server = http.createServer(async (req, res) => {
         <h1>🚚 COW Fuel Dashboard</h1>
         <p class="status">✅ Node.js Server is running successfully!</p>
         <p><strong>Current time:</strong> ${new Date().toLocaleString()}</p>
-        <h3>🔗 API Endpoints:</h3>
-        <div class="endpoint">
-            <strong>GET <a href="/api/ping">/api/ping</a></strong> - Health check
-        </div>
-        <div class="endpoint">
-            <strong>GET <a href="/api/fuel/sites">/api/fuel/sites</a></strong> - All fuel sites data
-        </div>
-        <div class="endpoint">
-            <strong>GET <a href="/api/fuel/central">/api/fuel/central</a></strong> - Central region sites
-        </div>
-        <div class="endpoint">
-            <strong>GET <a href="/api/fuel/today">/api/fuel/today</a></strong> - Sites due today
-        </div>
-        <div class="endpoint">
-            <strong>GET <a href="/api/fuel/stats">/api/fuel/stats</a></strong> - Dashboard statistics
-        </div>
-        <div class="endpoint">
-            <strong>GET <a href="/data.json">/data.json</a></strong> - Raw JSON data
-        </div>
     </div>
 </body>
 </html>
