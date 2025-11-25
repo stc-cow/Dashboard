@@ -1,130 +1,135 @@
 import { RequestHandler } from "express";
+import {
+  fetchAndParseGoogleSheet,
+  processFuelData,
+  ProcessedFuelData,
+  SheetSite,
+} from "../../shared/sheets-parser";
 
-export interface FuelSite {
-  SiteName: string;
-  CityName: string;
-  NextFuelingPlan: string;
-  lat: number;
-  lng: number;
+const SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0GkXnQMdKYZITuuMsAzeWDtGUqEJ3lWwqNdA67NewOsDOgqsZHKHECEEkea4nrukx4-DqxKmf62nC/pub?gid=1149576218&single=true&output=csv";
+
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+let cachedData: ProcessedFuelData | null = null;
+let cachedAt = 0;
+let inflightPromise: Promise<ProcessedFuelData> | null = null;
+
+async function loadFuelData(): Promise<{
+  processed: ProcessedFuelData;
+  timestamp: number;
+}> {
+  const now = Date.now();
+
+  if (cachedData && now - cachedAt < CACHE_DURATION) {
+    return { processed: cachedData, timestamp: cachedAt };
+  }
+
+  if (inflightPromise) {
+    const processed = await inflightPromise;
+    return { processed, timestamp: cachedAt };
+  }
+
+  inflightPromise = (async () => {
+    const sites: SheetSite[] = await fetchAndParseGoogleSheet(SHEET_URL);
+    const processed = processFuelData(sites);
+
+    cachedData = processed;
+    cachedAt = Date.now();
+    inflightPromise = null;
+
+    return processed;
+  })();
+
+  const processed = await inflightPromise;
+  return { processed, timestamp: cachedAt };
 }
 
-// Mock data - in production, this would fetch from Google Sheets or database
-const mockFuelData: FuelSite[] = [
-  {
-    SiteName: "COW552",
-    CityName: "Riyadh",
-    NextFuelingPlan: "2025-01-19",
-    lat: 24.7136,
-    lng: 46.6753,
-  },
-  {
-    SiteName: "COW910",
-    CityName: "Jeddah",
-    NextFuelingPlan: "2025-01-20",
-    lat: 21.4858,
-    lng: 39.1925,
-  },
-  {
-    SiteName: "COW777",
-    CityName: "Buraydah",
-    NextFuelingPlan: "2025-01-21",
-    lat: 26.332,
-    lng: 43.9736,
-  },
-  {
-    SiteName: "COW123",
-    CityName: "Riyadh",
-    NextFuelingPlan: "2025-01-18",
-    lat: 24.7136,
-    lng: 46.6753,
-  },
-  {
-    SiteName: "COW445",
-    CityName: "Dammam",
-    NextFuelingPlan: "2025-01-22",
-    lat: 26.4207,
-    lng: 50.0888,
-  },
-  {
-    SiteName: "COW678",
-    CityName: "Medina",
-    NextFuelingPlan: "2025-01-17",
-    lat: 24.5247,
-    lng: 39.5692,
-  },
-];
+function handleError(res: Parameters<RequestHandler>[1], error: unknown) {
+  console.error("Error fetching fuel data:", error);
+  res.status(500).json({
+    success: false,
+    error: "Failed to fetch fuel data",
+  });
+}
 
-export const handleGetFuelSites: RequestHandler = (req, res) => {
+export const handleGetFuelSites: RequestHandler = async (_req, res) => {
   try {
-    // In production, you would:
-    // 1. Fetch from Google Sheets using the URL from your Python script
-    // 2. Process the data similar to your clean_and_filter function
-    // 3. Return the processed data
-
+    const { processed, timestamp } = await loadFuelData();
     res.json({
       success: true,
-      data: mockFuelData,
-      lastUpdated: new Date().toISOString(),
+      data: processed.sites,
+      lastUpdated: new Date(timestamp).toISOString(),
     });
   } catch (error) {
-    console.error("Error fetching fuel data:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to fetch fuel data",
-    });
+    handleError(res, error);
   }
 };
 
-export const handleGetFuelStats: RequestHandler = (req, res) => {
+export const handleGetCentralSites: RequestHandler = async (_req, res) => {
   try {
+    const { processed, timestamp } = await loadFuelData();
+    res.json({
+      success: true,
+      data: processed.centralSites,
+      lastUpdated: new Date(timestamp).toISOString(),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const handleGetFuelToday: RequestHandler = async (_req, res) => {
+  try {
+    const { processed, timestamp } = await loadFuelData();
+    res.json({
+      success: true,
+      data: processed.today,
+      lastUpdated: new Date(timestamp).toISOString(),
+    });
+  } catch (error) {
+    handleError(res, error);
+  }
+};
+
+export const handleGetFuelStats: RequestHandler = async (_req, res) => {
+  try {
+    const { processed, timestamp } = await loadFuelData();
+
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const afterTomorrow = new Date(today);
-    afterTomorrow.setDate(afterTomorrow.getDate() + 2);
+    today.setHours(0, 0, 0, 0);
 
-    const isSameDay = (date1: Date, date2: Date) => {
-      return date1.toDateString() === date2.toDateString();
-    };
-
-    const isOverdue = (date: Date) => {
-      return date < today;
-    };
-
-    const todayCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), today),
-    ).length;
-
-    const tomorrowCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), tomorrow),
-    ).length;
-
-    const afterTomorrowCount = mockFuelData.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), afterTomorrow),
-    ).length;
-
-    const overdueCount = mockFuelData.filter((site) =>
-      isOverdue(new Date(site.NextFuelingPlan)),
-    ).length;
-
-    const stats = {
-      totalSites: mockFuelData.length,
-      needFuelToday: todayCount,
-      tomorrow: tomorrowCount,
-      afterTomorrow: afterTomorrowCount,
-      overdue: overdueCount,
-      lastUpdated: new Date().toISOString(),
-    };
+    const overdueCount = processed.today.filter((site) => {
+      const fuelingDate = new Date(site.NextFuelingPlan);
+      fuelingDate.setHours(0, 0, 0, 0);
+      return fuelingDate < today;
+    }).length;
 
     res.json({
       success: true,
-      stats,
+      stats: {
+        totalSites: processed.stats.totalSites,
+        needFuelToday: processed.today.length,
+        tomorrow: processed.tomorrow.length,
+        afterTomorrow: processed.afterTomorrow.length,
+        overdue: overdueCount,
+        lastUpdated: new Date(timestamp).toISOString(),
+      },
     });
   } catch (error) {
-    console.error("Error calculating fuel stats:", error);
-    res.status(500).json({
-      success: false,
-      error: "Failed to calculate fuel statistics",
+    handleError(res, error);
+  }
+};
+
+export const handleFuelOverview: RequestHandler = async (_req, res) => {
+  try {
+    const { processed, timestamp } = await loadFuelData();
+    res.json({
+      success: true,
+      data: processed,
+      lastUpdated: new Date(timestamp).toISOString(),
     });
+  } catch (error) {
+    handleError(res, error);
   }
 };
