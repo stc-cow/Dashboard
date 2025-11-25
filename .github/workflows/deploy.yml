@@ -2,6 +2,15 @@ name: Deploy to GitHub Pages
 
 on:
   push:
+    branches:
+      - work
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
     branches: [main]
   pull_request:
     branches: [main]
@@ -9,6 +18,20 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build site
 
     steps:
       - uses: actions/checkout@v3
@@ -28,5 +51,8 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist/spa
+          publish_branch: gh-pages
+          force_orphan: true
           publish_dir: ./dist
           cname: stc-cow.github.io
