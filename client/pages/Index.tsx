@@ -24,7 +24,6 @@ const formatDate = (dateString: string) => {
 };
 
 export default function Index() {
-  const [sites, setSites] = useState<FuelSite[]>([]);
   const [centralSites, setCentralSites] = useState<FuelSite[]>([]);
   const [todaySites, setTodaySites] = useState<FuelSite[]>([]);
   const [tomorrowSites, setTomorrowSites] = useState<FuelSite[]>([]);
@@ -84,10 +83,7 @@ export default function Index() {
       });
       setLastUpdated(payload.lastUpdated || new Date().toISOString());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load data");
       console.error("Error fetching fuel data:", err);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -237,7 +233,11 @@ export default function Index() {
               </CardContent>
             </Card>
           </div>
-        </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
 
         <div className="flex-1 bg-gray-800">
           <FuelMap

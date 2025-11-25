@@ -117,10 +117,18 @@ export function FuelMap({
   }, [sites, todaySites, tomorrowSites, afterTomorrowSites]);
 
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full"
-      style={{ position: "relative" }}
-    />
+    <div className="map-wrapper">
+      <div ref={mapRef} className="map-container" />
+      <div className="map-legend">
+        <div className="legend-item">
+          <span className="legend-dot red" />
+          Due
+        </div>
+        <div className="legend-item">
+          <span className="legend-dot green" />
+          Fueling date
+        </div>
+      </div>
+    </div>
   );
 }
