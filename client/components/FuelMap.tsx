@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { FuelSite } from "@shared/fuel";
@@ -18,39 +18,50 @@ export function FuelMap({
 }: FuelMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
-    if (!mapRef.current || mapReady) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
-    const map = L.map(mapRef.current).setView([23.8859, 45.0792], 6);
+    const saudiBounds = L.latLngBounds(
+      [16.0, 32.0],
+      [33.0, 56.0],
+    );
+
+    const map = L.map(mapRef.current, {
+      center: [23.8859, 45.0792],
+      zoom: 6,
+      minZoom: 5,
+      maxZoom: 20,
+      maxBounds: saudiBounds,
+      maxBoundsViscosity: 1.0,
+    });
 
     L.tileLayer(
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       {
         attribution:
           "&copy; Tiles by Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEO, Vexcel, FAO, DMA, NRCAN, GeoBase, IGN, Kadaster, USGS, Getmapping, Aerogrid, IGP, and the GIS User Community",
-        maxZoom: 20,
-        bounds: [
-          [16.0, 32.0],
-          [33.0, 56.0],
-        ],
       },
     ).addTo(map);
 
-    const createIcon = (color: string) => {
-      return L.divIcon({
-        html: `<div style="background-color: ${color}; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-        className: "custom-icon",
-      });
-    };
+    markersLayerRef.current = L.layerGroup().addTo(map);
+    mapInstanceRef.current = map;
 
-    const redIcon = createIcon("#ef4444");
-    const orangeIcon = createIcon("#f97316");
-    const yellowIcon = createIcon("#eab308");
-    const greenIcon = createIcon("#22c55e");
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      markersLayerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const layer = markersLayerRef.current;
+
+    if (!map || !layer) return;
+
+    layer.clearLayers();
 
     const todaySiteNames = new Set(todaySites.map((s) => s.SiteName));
     const tomorrowSiteNames = new Set(tomorrowSites.map((s) => s.SiteName));
@@ -58,64 +69,66 @@ export function FuelMap({
       afterTomorrowSites.map((s) => s.SiteName),
     );
 
+    const highlightPoints: L.LatLngExpression[] = [];
+    const allPoints: L.LatLngExpression[] = [];
+
     sites.forEach((site) => {
-      let icon = greenIcon;
-      let zIndex = 100;
-      let popupText = `<strong>${site.SiteName}</strong><br/>Fuel: ${site.NextFuelingPlan}<br/>Status: `;
+      let color = "#22c55e"; // green
+      let status = "🟢 Scheduled (3+ days)";
 
       if (todaySiteNames.has(site.SiteName)) {
-        icon = redIcon;
-        zIndex = 1000;
-        popupText += "🔴 Due Today/Overdue";
+        color = "#ef4444";
+        status = "🔴 Due today/overdue";
+        highlightPoints.push([site.lat, site.lng]);
       } else if (tomorrowSiteNames.has(site.SiteName)) {
-        icon = orangeIcon;
-        zIndex = 800;
-        popupText += "🟠 Tomorrow";
+        color = "#ef4444";
+        status = "🔴 Tomorrow";
+        highlightPoints.push([site.lat, site.lng]);
       } else if (afterTomorrowSiteNames.has(site.SiteName)) {
-        icon = yellowIcon;
-        zIndex = 600;
-        popupText += "🟡 After Tomorrow";
-      } else {
-        popupText += "🟢 Scheduled (3+ days)";
+        color = "#ef4444";
+        status = "🔴 After tomorrow";
+        highlightPoints.push([site.lat, site.lng]);
       }
 
-      const marker = L.marker([site.lat, site.lng], {
-        icon,
-        zIndexOffset: zIndex,
+      const marker = L.circleMarker([site.lat, site.lng], {
+        radius: 9,
+        color,
+        fillColor: color,
+        fillOpacity: 0.78,
+        weight: 2,
       })
-        .bindPopup(popupText)
-        .addTo(map);
+        .bindPopup(
+          `<strong>${site.SiteName}</strong><br/>Fuel: ${site.NextFuelingPlan}<br/>Status: ${status}`,
+        )
+        .addTo(layer);
 
-      if (todaySiteNames.has(site.SiteName)) {
-        marker.on("click", () => {
-          map.setView([site.lat, site.lng], 10);
-        });
-      }
+      marker.on("click", () => {
+        map.setView([site.lat, site.lng], 10);
+      });
+
+      allPoints.push([site.lat, site.lng]);
     });
 
-    if (todaySites.length > 0 && todaySites.length <= 3) {
-      const group = new L.FeatureGroup(
-        todaySites.map((site) => L.marker([site.lat, site.lng])),
-      );
-      map.fitBounds(group.getBounds().pad(0.2));
+    if (highlightPoints.length > 0) {
+      map.fitBounds(L.latLngBounds(highlightPoints).pad(0.35));
+    } else if (allPoints.length > 0) {
+      map.fitBounds(L.latLngBounds(allPoints).pad(0.3));
     }
-
-    mapInstanceRef.current = map;
-    setMapReady(true);
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
-    };
-  }, [sites, todaySites, tomorrowSites, afterTomorrowSites, mapReady]);
+  }, [sites, todaySites, tomorrowSites, afterTomorrowSites]);
 
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full"
-      style={{ position: "relative" }}
-    />
+    <div className="map-wrapper">
+      <div ref={mapRef} className="map-container" />
+      <div className="map-legend">
+        <div className="legend-item">
+          <span className="legend-dot red" />
+          Due
+        </div>
+        <div className="legend-item">
+          <span className="legend-dot green" />
+          Fueling date
+        </div>
+      </div>
+    </div>
   );
 }
