@@ -1,44 +1,144 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { MapPin } from "lucide-react";
 import { FuelSite } from "@shared/fuel";
 
 interface FuelMapProps {
   sites: FuelSite[];
+  todaySites?: FuelSite[];
+  tomorrowSites?: FuelSite[];
+  afterTomorrowSites?: FuelSite[];
 }
 
-export function FuelMap({ sites }: FuelMapProps) {
+export function FuelMap({
+  sites,
+  todaySites = [],
+  tomorrowSites = [],
+  afterTomorrowSites = [],
+}: FuelMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
-    // In a real implementation, you would initialize Leaflet map here
-    // For now, we'll show a placeholder with site data
-    if (mapRef.current && sites.length > 0) {
-      console.log("Map would be initialized with sites:", sites);
+    if (!mapRef.current || mapReady) return;
+
+    // Initialize map centered on Saudi Arabia
+    const map = L.map(mapRef.current).setView([23.8859, 45.0792], 6);
+
+    // Use satellite tiles from Esri
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution:
+          "&copy; Tiles by Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEO, Vexcel, FAO, DMA, NRCAN, GeoBase, IGN, Kadaster, USGS, Getmapping, Aerogrid, IGP, and the GIS User Community",
+        maxZoom: 20,
+        bounds: [
+          [16.0, 32.0],
+          [33.0, 56.0],
+        ],
+      },
+    ).addTo(map);
+
+    // Create custom icons for different statuses
+    const createIcon = (color: string) => {
+      return L.divIcon({
+        html: `<div style="background-color: ${color}; border: 2px solid white; border-radius: 50%; width: 20px; height: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        className: "custom-icon",
+      });
+    };
+
+    const redIcon = createIcon("#ef4444");
+    const orangeIcon = createIcon("#f97316");
+    const yellowIcon = createIcon("#eab308");
+    const greenIcon = createIcon("#22c55e");
+
+    let maxOverdue = 0;
+    const todaySiteNames = new Set(todaySites.map((s) => s.SiteName));
+    const tomorrowSiteNames = new Set(tomorrowSites.map((s) => s.SiteName));
+    const afterTomorrowSiteNames = new Set(afterTomorrowSites.map((s) => s.SiteName));
+
+    // Find site with most overdue days
+    todaySites.forEach((site) => {
+      const siteDate = new Date(site.NextFuelingPlan);
+      const today = new Date();
+      const daysDiff = Math.floor(
+        (today.getTime() - siteDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+      if (daysDiff > maxOverdue) {
+        maxOverdue = daysDiff;
+      }
+    });
+
+    // Add markers for all sites
+    sites.forEach((site) => {
+      let icon = greenIcon;
+      let zIndex = 100;
+      let popupText = `<strong>${site.SiteName}</strong><br/>Fuel: ${site.NextFuelingPlan}<br/>Status: `;
+
+      if (todaySiteNames.has(site.SiteName)) {
+        icon = redIcon;
+        zIndex = 1000;
+        popupText += "🔴 Due Today/Overdue";
+      } else if (tomorrowSiteNames.has(site.SiteName)) {
+        icon = orangeIcon;
+        zIndex = 800;
+        popupText += "🟠 Tomorrow";
+      } else if (afterTomorrowSiteNames.has(site.SiteName)) {
+        icon = yellowIcon;
+        zIndex = 600;
+        popupText += "🟡 After Tomorrow";
+      } else {
+        popupText += "🟢 Scheduled (3+ days)";
+      }
+
+      const marker = L.marker([site.lat, site.lng], {
+        icon,
+        zIndexOffset: zIndex,
+      })
+        .bindPopup(popupText)
+        .addTo(map);
+
+      // Auto-zoom to highest priority sites
+      if (todaySiteNames.has(site.SiteName)) {
+        marker.on("click", () => {
+          map.setView([site.lat, site.lng], 10);
+        });
+      }
+    });
+
+    // Auto-zoom if there are urgent sites
+    if (todaySites.length > 0 && todaySites.length <= 3) {
+      const group = new L.FeatureGroup(
+        todaySites.map((site) =>
+          L.marker([site.lat, site.lng]),
+        ),
+      );
+      map.fitBounds(group.getBounds().pad(0.2));
     }
-  }, [sites]);
 
-  const getStatusColor = (nextFuelingPlan: string) => {
-    const today = new Date();
-    const fuelDate = new Date(nextFuelingPlan);
-    const daysDiff = Math.ceil(
-      (fuelDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
-    );
+    mapInstanceRef.current = map;
+    setMapReady(true);
 
-    if (daysDiff < 0) return "bg-red-500"; // Overdue
-    if (daysDiff === 0) return "bg-red-500"; // Today
-    if (daysDiff === 1) return "bg-orange-500"; // Tomorrow
-    if (daysDiff === 2) return "bg-yellow-500"; // After tomorrow
-    return "bg-green-500"; // Future
-  };
+    // Cleanup
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, [sites, todaySites, tomorrowSites, afterTomorrowSites, mapReady]);
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
       <CardHeader>
         <CardTitle className="flex items-center text-gray-900 dark:text-white">
           <MapPin className="w-5 h-5 mr-2" />
-          Fuel Site Locations
+          Fuel Site Locations Map (Saudi Arabia)
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -46,93 +146,36 @@ export function FuelMap({ sites }: FuelMapProps) {
           {/* Map Container */}
           <div
             ref={mapRef}
-            className="w-full h-[500px] bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-slate-700 dark:to-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 relative overflow-hidden"
-          >
-            {/* Map Background Pattern */}
-            <div className="absolute inset-0 opacity-10">
-              <div
-                className="w-full h-full"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23000000' fill-opacity='0.1'%3E%3Ccircle cx='30' cy='30' r='2'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-                  backgroundSize: "60px 60px",
-                }}
-              />
+            className="w-full h-[600px] bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-slate-700 dark:to-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 overflow-hidden"
+          />
+
+          {/* Legend */}
+          <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 rounded-full bg-red-500 border-2 border-white shadow" />
+              <span className="text-xs font-medium text-gray-700">
+                Today/Overdue
+              </span>
             </div>
-
-            {/* Center Content */}
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="text-center">
-                <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                  Interactive Map Integration
-                </h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Connect to Leaflet.js to show fuel sites across Saudi Arabia
-                </p>
-                <div className="flex flex-wrap gap-2 justify-center">
-                  <Badge
-                    variant="outline"
-                    className="bg-red-50 text-red-700 border-red-200"
-                  >
-                    🔴 Today/Overdue
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="bg-orange-50 text-orange-700 border-orange-200"
-                  >
-                    🟠 Tomorrow
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="bg-yellow-50 text-yellow-700 border-yellow-200"
-                  >
-                    🟡 After Tomorrow
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className="bg-green-50 text-green-700 border-green-200"
-                  >
-                    🟢 Scheduled
-                  </Badge>
-                </div>
-              </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 rounded-full bg-orange-500 border-2 border-white shadow" />
+              <span className="text-xs font-medium text-gray-700">
+                Tomorrow
+              </span>
             </div>
-
-            {/* Mock Site Markers */}
-            {sites.map((site, index) => {
-              // Convert lat/lng to pixel positions (mock positioning)
-              const x = (site.lng - 34) * 20 + 100; // Rough conversion for Saudi Arabia
-              const y = (28 - site.lat) * 20 + 100;
-
-              return (
-                <div
-                  key={index}
-                  className="absolute transform -translate-x-1/2 -translate-y-1/2"
-                  style={{
-                    left: Math.max(20, Math.min(x, 480)),
-                    top: Math.max(20, Math.min(y, 480)),
-                  }}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full border-2 border-white shadow-lg ${getStatusColor(site.NextFuelingPlan)} hover:scale-125 transition-transform cursor-pointer`}
-                    title={`${site.SiteName} - ${site.CityName} - ${site.NextFuelingPlan}`}
-                  />
-                </div>
-              );
-            })}
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 rounded-full bg-yellow-500 border-2 border-white shadow" />
+              <span className="text-xs font-medium text-gray-700">
+                After Tomorrow
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow" />
+              <span className="text-xs font-medium text-gray-700">
+                3+ Days
+              </span>
+            </div>
           </div>
-        </div>
-
-        {/* Legend */}
-        <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-          <p>💡 To enable full map functionality:</p>
-          <p className="ml-2">
-            • Install Leaflet:{" "}
-            <code className="bg-gray-100 dark:bg-gray-800 px-1 rounded">
-              npm install leaflet @types/leaflet
-            </code>
-          </p>
-          <p className="ml-2">• Add map tiles and proper coordinate mapping</p>
         </div>
       </CardContent>
     </Card>
