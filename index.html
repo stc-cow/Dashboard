@@ -1,13 +1,138 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/placeholder.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>COW Fuel Dashboard</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/client/main.tsx"></script>
-  </body>
+    <link rel="stylesheet" href="style.css" />
+    
+    <!-- Leaflet Map Library -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-content">
+            <div class="logo">
+                <div class="logo-icon">🚚</div>
+                <div class="logo-text">
+                    <h1>COW Fuel Dashboard</h1>
+                    <p>Central Operations & Workflows</p>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="refreshBtn" class="btn btn-primary">
+                    <span id="refreshIcon">🔄</span> Refresh Data
+                </button>
+                <div class="status-badge" id="statusBadge">Live Data</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- KPI Cards -->
+        <div class="cards">
+            <div class="card card-total" id="totalSites">
+                <div class="card-header">
+                    <h3>📊 Total Sites</h3>
+                </div>
+                <div class="card-content">
+                    <p class="value">0</p>
+                    <p class="subtitle">With fuel schedules</p>
+                </div>
+            </div>
+
+            <div class="card card-urgent" id="needFuelToday">
+                <div class="card-header">
+                    <h3>🔴 Need Fuel Today</h3>
+                </div>
+                <div class="card-content">
+                    <p class="value">0</p>
+                    <p class="subtitle" id="overdueText">Including overdue</p>
+                </div>
+            </div>
+
+            <div class="card card-warning" id="tomorrowFuel">
+                <div class="card-header">
+                    <h3>🟠 Tomorrow</h3>
+                </div>
+                <div class="card-content">
+                    <p class="value">0</p>
+                    <p class="subtitle">Sites due tomorrow</p>
+                </div>
+            </div>
+
+            <div class="card card-caution" id="afterTomorrowFuel">
+                <div class="card-header">
+                    <h3>🟡 After Tomorrow</h3>
+                </div>
+                <div class="card-content">
+                    <p class="value">0</p>
+                    <p class="subtitle">Next 2 days</p>
+                </div>
+            </div>
+
+            <div class="card card-success" id="allScheduled">
+                <div class="card-header">
+                    <h3>🟢 Scheduled</h3>
+                </div>
+                <div class="card-content">
+                    <p class="value">0</p>
+                    <p class="subtitle">Future dates</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- MAP -->
+        <div class="map-container">
+            <div class="map-header">
+                <h2>🗺️ Fuel Site Locations</h2>
+                <div class="map-legend">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #dc3545;"></span>
+                        Today/Overdue
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #fd7e14;"></span>
+                        Tomorrow
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #ffc107;"></span>
+                        After Tomorrow
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background: #198754;"></span>
+                        Scheduled
+                    </div>
+                </div>
+            </div>
+            <div id="map"></div>
+        </div>
+
+        <!-- Reports Section -->
+        <div class="reports-section">
+            <h2>📋 Quick Reports</h2>
+            <div class="reports-grid">
+                <div class="report-card">
+                    <h3>Today's Schedule</h3>
+                    <p>Sites requiring fuel today</p>
+                    <button onclick="downloadReport('today')" class="btn btn-outline">Download CSV</button>
+                </div>
+                <div class="report-card">
+                    <h3>Overdue Sites</h3>
+                    <p>Sites with missed fuel dates</p>
+                    <button onclick="downloadReport('pending')" class="btn btn-outline">Download CSV</button>
+                </div>
+                <div class="report-card">
+                    <h3>Complete Report</h3>
+                    <p>All fuel sites and schedules</p>
+                    <button onclick="downloadReport('complete')" class="btn btn-outline">Download CSV</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
 </html>
