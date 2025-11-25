@@ -346,9 +346,6 @@ const server = http.createServer(async (req, res) => {
         body { font-family: Arial; margin: 40px; background: #f0f2f5; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .status { color: #28a745; font-weight: bold; }
-        .endpoint { background: #f8f9fa; padding: 10px; margin: 10px 0; border-left: 4px solid #007bff; }
-        a { color: #007bff; text-decoration: none; }
-        a:hover { text-decoration: underline; }
     </style>
 </head>
 <body>
