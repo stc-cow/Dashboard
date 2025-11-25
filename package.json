@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "COW Fuel Dashboard - Python/Flask Backend",
   "scripts": {
-    "dev": "node server.js",
+    "dev": "node server.js & vite --port 3000",
+    "dev:server": "node server.js",
+    "dev:client": "vite --port 3000",
     "start": "node server.js",
     "test": "node --version && echo 'Node.js is available'",
     "install": "echo 'No dependencies needed'",
