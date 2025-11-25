@@ -3,12 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FuelMap } from "@/components/FuelMap";
-import {
-  Fuel,
-  MapPin,
-  AlertTriangle,
-  RefreshCw,
-} from "lucide-react";
+import { Fuel, MapPin, AlertTriangle, RefreshCw } from "lucide-react";
 import { FuelSite, FuelStats, FuelApiResponse } from "@shared/fuel";
 
 export default function Index() {
@@ -122,7 +117,9 @@ export default function Index() {
             </div>
             <div>
               <h1 className="text-2xl font-bold">COW Fuel Dashboard</h1>
-              <p className="text-blue-100 text-sm">Central Operations & Workflows</p>
+              <p className="text-blue-100 text-sm">
+                Central Operations & Workflows
+              </p>
             </div>
           </div>
           <div className="flex items-center space-x-3">
@@ -168,7 +165,7 @@ export default function Index() {
               <h2 className="text-xl font-bold text-gray-900 mb-4">
                 Central sites
               </h2>
-              
+
               <div className="space-y-3">
                 {/* Due and Today */}
                 <div className="bg-white rounded-lg p-4 border border-gray-200">
@@ -222,7 +219,10 @@ export default function Index() {
                     </thead>
                     <tbody>
                       {todaySites.slice(0, 10).map((site, index) => (
-                        <tr key={index} className="border-b border-gray-200 hover:bg-gray-50">
+                        <tr
+                          key={index}
+                          className="border-b border-gray-200 hover:bg-gray-50"
+                        >
                           <td className="py-2 px-3 text-gray-900 font-medium text-xs">
                             {site.SiteName}
                           </td>

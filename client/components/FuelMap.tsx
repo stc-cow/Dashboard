@@ -54,7 +54,9 @@ export function FuelMap({
 
     const todaySiteNames = new Set(todaySites.map((s) => s.SiteName));
     const tomorrowSiteNames = new Set(tomorrowSites.map((s) => s.SiteName));
-    const afterTomorrowSiteNames = new Set(afterTomorrowSites.map((s) => s.SiteName));
+    const afterTomorrowSiteNames = new Set(
+      afterTomorrowSites.map((s) => s.SiteName),
+    );
 
     sites.forEach((site) => {
       let icon = greenIcon;
@@ -93,9 +95,7 @@ export function FuelMap({
 
     if (todaySites.length > 0 && todaySites.length <= 3) {
       const group = new L.FeatureGroup(
-        todaySites.map((site) =>
-          L.marker([site.lat, site.lng]),
-        ),
+        todaySites.map((site) => L.marker([site.lat, site.lng])),
       );
       map.fitBounds(group.getBounds().pad(0.2));
     }
