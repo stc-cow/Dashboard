@@ -1,110 +1,66 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Fuel, MapPin, Calendar, AlertTriangle, TrendingUp } from "lucide-react";
-
-interface FuelSite {
-  SiteName: string;
-  CityName: string;
-  NextFuelingPlan: string;
-  lat: number;
-  lng: number;
-}
-
-interface DashboardStats {
-  totalSites: number;
-  needFuelToday: number;
-  tomorrow: number;
-  afterTomorrow: number;
-  overdue: number;
-}
+import { Button } from "@/components/ui/button";
+import { FuelMap } from "@/components/FuelMap";
+import { Fuel, MapPin, Calendar, AlertTriangle, TrendingUp, RefreshCw } from "lucide-react";
+import { FuelSite, FuelStats, FuelApiResponse } from "@shared/fuel";
 
 export default function Index() {
   const [sites, setSites] = useState<FuelSite[]>([]);
-  const [stats, setStats] = useState<DashboardStats>({
+  const [stats, setStats] = useState<FuelStats>({
     totalSites: 0,
     needFuelToday: 0,
     tomorrow: 0,
     afterTomorrow: 0,
     overdue: 0,
+    lastUpdated: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchFuelData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch sites and stats in parallel
+      const [sitesResponse, statsResponse] = await Promise.all([
+        fetch("/api/fuel/sites"),
+        fetch("/api/fuel/stats"),
+      ]);
+
+      if (!sitesResponse.ok || !statsResponse.ok) {
+        throw new Error("Failed to fetch fuel data");
+      }
+
+      const sitesData: FuelApiResponse = await sitesResponse.json();
+      const statsData: FuelApiResponse = await statsResponse.json();
+
+      if (sitesData.success && sitesData.data) {
+        setSites(sitesData.data);
+      }
+
+      if (statsData.success && statsData.stats) {
+        setStats(statsData.stats);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load data");
+      console.error("Error fetching fuel data:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    // Simulate loading data - you can replace this with actual API calls
-    const mockData: FuelSite[] = [
-      {
-        SiteName: "COW552",
-        CityName: "Riyadh",
-        NextFuelingPlan: "2025-01-19",
-        lat: 24.7136,
-        lng: 46.6753,
-      },
-      {
-        SiteName: "COW910",
-        CityName: "Jeddah",
-        NextFuelingPlan: "2025-01-20",
-        lat: 21.4858,
-        lng: 39.1925,
-      },
-      {
-        SiteName: "COW777",
-        CityName: "Buraydah",
-        NextFuelingPlan: "2025-01-21",
-        lat: 26.332,
-        lng: 43.9736,
-      },
-      {
-        SiteName: "COW123",
-        CityName: "Riyadh",
-        NextFuelingPlan: "2025-01-18",
-        lat: 24.7136,
-        lng: 46.6753,
-      },
-    ];
+    fetchFuelData();
 
-    setSites(mockData);
-    calculateStats(mockData);
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(fetchFuelData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  const calculateStats = (data: FuelSite[]) => {
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const afterTomorrow = new Date(today);
-    afterTomorrow.setDate(afterTomorrow.getDate() + 2);
 
-    const isSameDay = (date1: Date, date2: Date) => {
-      return date1.toDateString() === date2.toDateString();
-    };
-
-    const isOverdue = (date: Date) => {
-      return date < today;
-    };
-
-    const todayCount = data.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), today)
-    ).length;
-
-    const tomorrowCount = data.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), tomorrow)
-    ).length;
-
-    const afterTomorrowCount = data.filter((site) =>
-      isSameDay(new Date(site.NextFuelingPlan), afterTomorrow)
-    ).length;
-
-    const overdueCount = data.filter((site) =>
-      isOverdue(new Date(site.NextFuelingPlan))
-    ).length;
-
-    setStats({
-      totalSites: data.length,
-      needFuelToday: todayCount,
-      tomorrow: tomorrowCount,
-      afterTomorrow: afterTomorrowCount,
-      overdue: overdueCount,
-    });
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-slate-900 dark:to-slate-800">
@@ -122,17 +78,57 @@ export default function Index() {
                 </h1>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
                   Central Operations & Workflows
+                  {stats.lastUpdated && (
+                    <span className="ml-2">
+                      • Last updated: {new Date(stats.lastUpdated).toLocaleTimeString()}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-              Live Data
-            </Badge>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchFuelData}
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+              <Badge variant="outline" className={`${error ? "bg-red-50 text-red-700 border-red-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+                {error ? "Offline" : "Live Data"}
+              </Badge>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-6 py-8">
+        {/* Error State */}
+        {error && (
+          <Card className="mb-6 bg-red-50 border-red-200">
+            <CardContent className="pt-6">
+              <div className="flex items-center text-red-700">
+                <AlertTriangle className="w-5 h-5 mr-2" />
+                <span>Failed to load fuel data: {error}</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Loading State */}
+        {loading && sites.length === 0 && (
+          <Card className="mb-6">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-center text-gray-500">
+                <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
+                <span>Loading fuel dashboard data...</span>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* KPI Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
           <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg hover:shadow-xl transition-all duration-200">
@@ -206,44 +202,7 @@ export default function Index() {
         </div>
 
         {/* Map Container */}
-        <Card className="bg-white/80 backdrop-blur-sm border-0 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center text-gray-900 dark:text-white">
-              <MapPin className="w-5 h-5 mr-2" />
-              Fuel Site Locations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              {/* Map Placeholder - You can integrate Leaflet here */}
-              <div className="w-full h-[500px] bg-gradient-to-br from-blue-100 to-indigo-200 dark:from-slate-700 dark:to-slate-800 rounded-lg border border-gray-200 dark:border-slate-600 flex items-center justify-center">
-                <div className="text-center">
-                  <MapPin className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                    Interactive Map
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Map integration will show fuel sites across Saudi Arabia
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2 justify-center">
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                      🔴 Today/Overdue
-                    </Badge>
-                    <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                      🟠 Tomorrow
-                    </Badge>
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
-                      🟡 After Tomorrow
-                    </Badge>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      🟢 Scheduled
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <FuelMap sites={sites} />
 
         {/* Site List */}
         <Card className="mt-8 bg-white/80 backdrop-blur-sm border-0 shadow-lg">
