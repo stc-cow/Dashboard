@@ -88,7 +88,16 @@ async function fetchAndParseSheet() {
   try {
     const https = require("https");
     return new Promise((resolve, reject) => {
-      https.get(SHEET_URL, (response) => {
+      const req = https.get(SHEET_URL, (response) => {
+        if (response.statusCode !== 200) {
+          reject(
+            new Error(
+              `HTTP ${response.statusCode}: ${response.statusMessage}`,
+            ),
+          );
+          return;
+        }
+
         let data = "";
         response.on("data", (chunk) => {
           data += chunk;
@@ -98,10 +107,14 @@ async function fetchAndParseSheet() {
             const rows = parseCSV(data);
 
             if (rows.length === 0) {
-              console.warn("No data found in sheet");
+              console.warn(
+                "⚠️ No data found in sheet or sheet is empty",
+              );
               resolve([]);
               return;
             }
+
+            console.log(`📊 Parsed ${rows.length} rows from sheet`);
 
             // Column indices (0-based): B=1, D=3, L=11, M=12, AJ=35
             const colB = 1; // SiteName
@@ -115,6 +128,8 @@ async function fetchAndParseSheet() {
             // Start from row 1 (skip header)
             for (let i = 1; i < rows.length; i++) {
               const row = rows[i];
+
+              if (!row || row.length === 0) continue;
 
               const siteName = row[colB]?.trim();
               const regionName = row[colD]?.trim();
@@ -130,6 +145,9 @@ async function fetchAndParseSheet() {
               const lng = parseFloat(lngStr || "0");
 
               if (isNaN(lat) || isNaN(lng)) {
+                console.warn(
+                  `⚠️ Skipping ${siteName}: invalid coordinates`,
+                );
                 continue;
               }
 
@@ -143,15 +161,25 @@ async function fetchAndParseSheet() {
               });
             }
 
+            console.log(
+              `✅ Successfully parsed ${sites.length} sites from sheet`,
+            );
             resolve(sites);
           } catch (err) {
             reject(err);
           }
         });
-      }).on("error", reject);
+      });
+
+      req.on("error", (err) => {
+        console.error("❌ HTTPS request error:", err.message);
+        reject(err);
+      });
+
+      req.setTimeout(10000);
     });
   } catch (error) {
-    console.error("Error fetching/parsing Google Sheet:", error);
+    console.error("❌ Error fetching/parsing Google Sheet:", error);
     return [];
   }
 }
