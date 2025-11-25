@@ -237,14 +237,18 @@ def serve_static(filename):
     return send_from_directory('.', filename)
 
 if __name__ == "__main__":
-    print("\n🚀 Starting COW Fuel Dashboard Server...")
+    print("\n🚀 Starting COW Fuel Dashboard Server (Direct Mode)...")
     print("Loading Central Fuel Plan database...")
 
     # Generate initial reports
     generate_reports(fuel_data)
 
-    # Get port from environment variable or default to 8080
-    port = int(os.environ.get('PORT', 8080))
+    # Get port from environment variable with better error handling
+    try:
+        port = int(os.environ.get('PORT', 8080))
+    except ValueError:
+        print("⚠️ Invalid PORT environment variable, using default 8080")
+        port = 8080
 
     print(f"✅ Loaded {len(fuel_data)} fuel sites")
     print(f"🌐 Starting web server on port {port}...")
@@ -256,4 +260,15 @@ if __name__ == "__main__":
     print("   - GET /api/fuel/refresh - Refresh data")
     print()
 
-    app.run(host='0.0.0.0', port=port, debug=False)
+    try:
+        app.run(host='0.0.0.0', port=port, debug=False)
+    except OSError as e:
+        if "Address already in use" in str(e):
+            print(f"❌ Error: Port {port} is already in use!")
+            print("Try setting a different PORT environment variable.")
+        else:
+            print(f"❌ Server error: {e}")
+    except KeyboardInterrupt:
+        print("\n👋 Server stopped")
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
