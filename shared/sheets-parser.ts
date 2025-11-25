@@ -150,7 +150,9 @@ export async function fetchAndParseGoogleSheet(
   }
 }
 
-function calculateFuelStatus(fuelingDate: string): "today" | "tomorrow" | "afterTomorrow" | "future" | "overdue" {
+function calculateFuelStatus(
+  fuelingDate: string,
+): "today" | "tomorrow" | "afterTomorrow" | "future" | "overdue" {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -178,8 +180,7 @@ function calculateFuelStatus(fuelingDate: string): "today" | "tomorrow" | "after
 export function processFuelData(sites: SheetSite[]): ProcessedFuelData {
   const centralSites = sites.filter(
     (site) =>
-      site.RegionName &&
-      site.RegionName.toLowerCase().includes("central"),
+      site.RegionName && site.RegionName.toLowerCase().includes("central"),
   );
 
   const today: SheetSite[] = [];

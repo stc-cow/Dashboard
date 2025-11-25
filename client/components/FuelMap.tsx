@@ -60,7 +60,9 @@ export function FuelMap({
     let maxOverdue = 0;
     const todaySiteNames = new Set(todaySites.map((s) => s.SiteName));
     const tomorrowSiteNames = new Set(tomorrowSites.map((s) => s.SiteName));
-    const afterTomorrowSiteNames = new Set(afterTomorrowSites.map((s) => s.SiteName));
+    const afterTomorrowSiteNames = new Set(
+      afterTomorrowSites.map((s) => s.SiteName),
+    );
 
     // Find site with most overdue days
     todaySites.forEach((site) => {
@@ -114,9 +116,7 @@ export function FuelMap({
     // Auto-zoom if there are urgent sites
     if (todaySites.length > 0 && todaySites.length <= 3) {
       const group = new L.FeatureGroup(
-        todaySites.map((site) =>
-          L.marker([site.lat, site.lng]),
-        ),
+        todaySites.map((site) => L.marker([site.lat, site.lng])),
       );
       map.fitBounds(group.getBounds().pad(0.2));
     }
@@ -171,9 +171,7 @@ export function FuelMap({
             </div>
             <div className="flex items-center space-x-2">
               <div className="w-4 h-4 rounded-full bg-green-500 border-2 border-white shadow" />
-              <span className="text-xs font-medium text-gray-700">
-                3+ Days
-              </span>
+              <span className="text-xs font-medium text-gray-700">3+ Days</span>
             </div>
           </div>
         </div>

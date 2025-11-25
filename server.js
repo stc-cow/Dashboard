@@ -115,9 +115,7 @@ async function fetchAndParseSheet(urlToFetch = SHEET_URL, redirectCount = 0) {
 
         if (response.statusCode !== 200) {
           reject(
-            new Error(
-              `HTTP ${response.statusCode}: ${response.statusMessage}`,
-            ),
+            new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`),
           );
           return;
         }
@@ -131,9 +129,7 @@ async function fetchAndParseSheet(urlToFetch = SHEET_URL, redirectCount = 0) {
             const rows = parseCSV(data);
 
             if (rows.length === 0) {
-              console.warn(
-                "⚠️ No data found in sheet or sheet is empty",
-              );
+              console.warn("⚠️ No data found in sheet or sheet is empty");
               resolve([]);
               return;
             }
@@ -169,9 +165,7 @@ async function fetchAndParseSheet(urlToFetch = SHEET_URL, redirectCount = 0) {
               const lng = parseFloat(lngStr || "0");
 
               if (isNaN(lat) || isNaN(lng)) {
-                console.warn(
-                  `⚠️ Skipping ${siteName}: invalid coordinates`,
-                );
+                console.warn(`⚠️ Skipping ${siteName}: invalid coordinates`);
                 continue;
               }
 
@@ -212,8 +206,7 @@ function updateCache(sites) {
   cachedSites = sites;
   cachedCentralSites = sites.filter(
     (site) =>
-      site.RegionName &&
-      site.RegionName.toLowerCase().includes("central"),
+      site.RegionName && site.RegionName.toLowerCase().includes("central"),
   );
 
   cachedTodayData = [];

@@ -15,19 +15,22 @@ export function CentralRegionCard({
   tomorrowSites,
   afterTomorrowSites,
 }: CentralRegionCardProps) {
-  const centralToday = todaySites.filter((site) =>
-    site.CityName?.toLowerCase().includes("central") ||
-    site.RegionName?.toLowerCase().includes("central"),
+  const centralToday = todaySites.filter(
+    (site) =>
+      site.CityName?.toLowerCase().includes("central") ||
+      site.RegionName?.toLowerCase().includes("central"),
   );
 
-  const centralTomorrow = tomorrowSites.filter((site) =>
-    site.CityName?.toLowerCase().includes("central") ||
-    site.RegionName?.toLowerCase().includes("central"),
+  const centralTomorrow = tomorrowSites.filter(
+    (site) =>
+      site.CityName?.toLowerCase().includes("central") ||
+      site.RegionName?.toLowerCase().includes("central"),
   );
 
-  const centralAfterTomorrow = afterTomorrowSites.filter((site) =>
-    site.CityName?.toLowerCase().includes("central") ||
-    site.RegionName?.toLowerCase().includes("central"),
+  const centralAfterTomorrow = afterTomorrowSites.filter(
+    (site) =>
+      site.CityName?.toLowerCase().includes("central") ||
+      site.RegionName?.toLowerCase().includes("central"),
   );
 
   return (
