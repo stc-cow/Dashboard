@@ -1,37 +1,186 @@
 const http = require("http");
 const url = require("url");
 
-// Mock fuel data
-const FUEL_DATA = [
-  {
-    SiteName: "COW552",
-    CityName: "Riyadh",
-    NextFuelingPlan: "2025-01-19",
-    lat: 24.7136,
-    lng: 46.6753,
-  },
-  {
-    SiteName: "COW910",
-    CityName: "Jeddah",
-    NextFuelingPlan: "2025-01-20",
-    lat: 21.4858,
-    lng: 39.1925,
-  },
-  {
-    SiteName: "COW777",
-    CityName: "Buraydah",
-    NextFuelingPlan: "2025-01-21",
-    lat: 26.332,
-    lng: 43.9736,
-  },
-  {
-    SiteName: "COW123",
-    CityName: "Riyadh",
-    NextFuelingPlan: "2025-01-18",
-    lat: 24.7136,
-    lng: 46.6753,
-  },
-];
+const SHEET_URL =
+  "https://docs.google.com/spreadsheets/d/e/2PACX-1vS0GkXnQMdKYZITuuMsAzeWDtGUqEJ3lWwqNdA67NewOsDOgqsZHKHECEEkea4nrukx4-DqxKmf62nC/pub?gid=1149576218&single=true&output=csv";
+
+let cachedSites = [];
+let cachedCentralSites = [];
+let cachedTodayData = [];
+let cachedTomorrowData = [];
+let cachedAfterTomorrowData = [];
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+function parseCSV(csvText) {
+  const rows = [];
+  let currentRow = [];
+  let insideQuotes = false;
+  let currentCell = "";
+
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    const nextChar = csvText[i + 1];
+
+    if (char === '"') {
+      if (insideQuotes && nextChar === '"') {
+        currentCell += '"';
+        i++;
+      } else {
+        insideQuotes = !insideQuotes;
+      }
+    } else if (char === "," && !insideQuotes) {
+      currentRow.push(currentCell.trim());
+      currentCell = "";
+    } else if ((char === "\n" || char === "\r") && !insideQuotes) {
+      if (currentCell || currentRow.length > 0) {
+        currentRow.push(currentCell.trim());
+        if (currentRow.some((cell) => cell.length > 0)) {
+          rows.push(currentRow);
+        }
+        currentRow = [];
+        currentCell = "";
+      }
+      if (char === "\r" && nextChar === "\n") {
+        i++;
+      }
+    } else {
+      currentCell += char;
+    }
+  }
+
+  if (currentCell || currentRow.length > 0) {
+    currentRow.push(currentCell.trim());
+    if (currentRow.some((cell) => cell.length > 0)) {
+      rows.push(currentRow);
+    }
+  }
+
+  return rows;
+}
+
+function calculateFuelStatus(fuelingDate) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  const afterTomorrow = new Date(today);
+  afterTomorrow.setDate(afterTomorrow.getDate() + 2);
+
+  const siteDate = new Date(fuelingDate);
+  siteDate.setHours(0, 0, 0, 0);
+
+  if (siteDate < today) {
+    return "overdue";
+  } else if (siteDate.getTime() === today.getTime()) {
+    return "today";
+  } else if (siteDate.getTime() === tomorrow.getTime()) {
+    return "tomorrow";
+  } else if (siteDate.getTime() === afterTomorrow.getTime()) {
+    return "afterTomorrow";
+  }
+  return "future";
+}
+
+async function fetchAndParseSheet() {
+  try {
+    const https = require("https");
+    return new Promise((resolve, reject) => {
+      https.get(SHEET_URL, (response) => {
+        let data = "";
+        response.on("data", (chunk) => {
+          data += chunk;
+        });
+        response.on("end", () => {
+          try {
+            const rows = parseCSV(data);
+
+            if (rows.length === 0) {
+              console.warn("No data found in sheet");
+              resolve([]);
+              return;
+            }
+
+            // Column indices (0-based): B=1, D=3, L=11, M=12, AJ=35
+            const colB = 1; // SiteName
+            const colD = 3; // RegionName
+            const colL = 11; // lat
+            const colM = 12; // lng
+            const colAJ = 35; // NextFuelingPlan
+
+            const sites = [];
+
+            // Start from row 1 (skip header)
+            for (let i = 1; i < rows.length; i++) {
+              const row = rows[i];
+
+              const siteName = row[colB]?.trim();
+              const regionName = row[colD]?.trim();
+              const latStr = row[colL]?.trim();
+              const lngStr = row[colM]?.trim();
+              const fuelingDate = row[colAJ]?.trim();
+
+              if (!siteName || !fuelingDate) {
+                continue;
+              }
+
+              const lat = parseFloat(latStr || "0");
+              const lng = parseFloat(lngStr || "0");
+
+              if (isNaN(lat) || isNaN(lng)) {
+                continue;
+              }
+
+              sites.push({
+                SiteName: siteName,
+                RegionName: regionName || "Unknown",
+                CityName: regionName || "Unknown",
+                lat,
+                lng,
+                NextFuelingPlan: fuelingDate,
+              });
+            }
+
+            resolve(sites);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      }).on("error", reject);
+    });
+  } catch (error) {
+    console.error("Error fetching/parsing Google Sheet:", error);
+    return [];
+  }
+}
+
+function updateCache(sites) {
+  cachedSites = sites;
+  cachedCentralSites = sites.filter(
+    (site) =>
+      site.RegionName &&
+      site.RegionName.toLowerCase().includes("central"),
+  );
+
+  cachedTodayData = [];
+  cachedTomorrowData = [];
+  cachedAfterTomorrowData = [];
+
+  sites.forEach((site) => {
+    const status = calculateFuelStatus(site.NextFuelingPlan);
+    if (status === "today" || status === "overdue") {
+      cachedTodayData.push(site);
+    } else if (status === "tomorrow") {
+      cachedTomorrowData.push(site);
+    } else if (status === "afterTomorrow") {
+      cachedAfterTomorrowData.push(site);
+    }
+  });
+
+  cacheTimestamp = Date.now();
+}
 
 function corsHeaders(res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -79,7 +228,7 @@ function calculateStats(data) {
   };
 }
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const path = parsedUrl.pathname;
 
@@ -95,31 +244,55 @@ const server = http.createServer((req, res) => {
 
   let response;
 
-  if (path === "/api/ping") {
-    response = {
-      message: "COW Fuel Dashboard Server is running!",
-      timestamp: new Date().toISOString(),
-      status: "healthy",
-      server: "Node.js",
-    };
-  } else if (path === "/api/fuel/sites") {
-    response = {
-      success: true,
-      data: FUEL_DATA,
-      count: FUEL_DATA.length,
-      lastUpdated: new Date().toISOString(),
-    };
-  } else if (path === "/api/fuel/stats") {
-    response = {
-      success: true,
-      stats: calculateStats(FUEL_DATA),
-    };
-  } else if (path === "/data.json") {
-    response = FUEL_DATA;
-  } else if (path === "/") {
-    res.setHeader("Content-Type", "text/html");
-    res.writeHead(200);
-    res.end(`
+  try {
+    // Refresh cache if needed
+    if (Date.now() - cacheTimestamp > CACHE_DURATION) {
+      console.log("Refreshing cache from Google Sheet...");
+      const sites = await fetchAndParseSheet();
+      if (sites.length > 0) {
+        updateCache(sites);
+      }
+    }
+
+    if (path === "/api/ping") {
+      response = {
+        message: "COW Fuel Dashboard Server is running!",
+        timestamp: new Date().toISOString(),
+        status: "healthy",
+        server: "Node.js",
+      };
+    } else if (path === "/api/fuel/sites") {
+      response = {
+        success: true,
+        data: cachedSites,
+        count: cachedSites.length,
+        lastUpdated: new Date().toISOString(),
+      };
+    } else if (path === "/api/fuel/central") {
+      response = {
+        success: true,
+        data: cachedCentralSites,
+        count: cachedCentralSites.length,
+        lastUpdated: new Date().toISOString(),
+      };
+    } else if (path === "/api/fuel/today") {
+      response = {
+        success: true,
+        data: cachedTodayData,
+        count: cachedTodayData.length,
+        lastUpdated: new Date().toISOString(),
+      };
+    } else if (path === "/api/fuel/stats") {
+      response = {
+        success: true,
+        stats: calculateStats(cachedSites),
+      };
+    } else if (path === "/data.json") {
+      response = cachedSites;
+    } else if (path === "/") {
+      res.setHeader("Content-Type", "text/html");
+      res.writeHead(200);
+      res.end(`
 <!DOCTYPE html>
 <html>
 <head>
@@ -143,7 +316,13 @@ const server = http.createServer((req, res) => {
             <strong>GET <a href="/api/ping">/api/ping</a></strong> - Health check
         </div>
         <div class="endpoint">
-            <strong>GET <a href="/api/fuel/sites">/api/fuel/sites</a></strong> - Fuel sites data (${FUEL_DATA.length} sites)
+            <strong>GET <a href="/api/fuel/sites">/api/fuel/sites</a></strong> - All fuel sites data
+        </div>
+        <div class="endpoint">
+            <strong>GET <a href="/api/fuel/central">/api/fuel/central</a></strong> - Central region sites
+        </div>
+        <div class="endpoint">
+            <strong>GET <a href="/api/fuel/today">/api/fuel/today</a></strong> - Sites due today
         </div>
         <div class="endpoint">
             <strong>GET <a href="/api/fuel/stats">/api/fuel/stats</a></strong> - Dashboard statistics
@@ -154,36 +333,63 @@ const server = http.createServer((req, res) => {
     </div>
 </body>
 </html>
-    `);
-    return;
-  } else {
-    response = {
-      error: "Endpoint not found",
-      availableEndpoints: [
-        "/api/ping",
-        "/api/fuel/sites",
-        "/api/fuel/stats",
-        "/data.json",
-      ],
-      timestamp: new Date().toISOString(),
-    };
-  }
+      `);
+      return;
+    } else {
+      response = {
+        error: "Endpoint not found",
+        availableEndpoints: [
+          "/api/ping",
+          "/api/fuel/sites",
+          "/api/fuel/central",
+          "/api/fuel/today",
+          "/api/fuel/stats",
+          "/data.json",
+        ],
+        timestamp: new Date().toISOString(),
+      };
+    }
 
-  res.writeHead(200);
-  res.end(JSON.stringify(response, null, 2));
+    res.writeHead(200);
+    res.end(JSON.stringify(response, null, 2));
+  } catch (err) {
+    console.error("Request handler error:", err);
+    res.writeHead(500);
+    res.end(
+      JSON.stringify({
+        error: "Internal server error",
+        message: err.message,
+      }),
+    );
+  }
 });
 
 const PORT = process.env.PORT || 8080;
 
-server.listen(PORT, "0.0.0.0", () => {
+server.listen(PORT, "0.0.0.0", async () => {
   console.log(`
 🚀 COW Fuel Dashboard Server Started
 📡 Port: ${PORT}
 🌐 URL: http://localhost:${PORT}
 🚀 Server: Node.js
-📊 API Endpoints: /api/ping, /api/fuel/sites, /api/fuel/stats
+📊 API Endpoints: /api/ping, /api/fuel/sites, /api/fuel/central, /api/fuel/today, /api/fuel/stats
 ⏰ Started: ${new Date().toLocaleString()}
   `);
+
+  // Initial data fetch
+  try {
+    const sites = await fetchAndParseSheet();
+    if (sites.length > 0) {
+      updateCache(sites);
+      console.log(`✅ Loaded ${sites.length} sites from Google Sheet`);
+      console.log(`📍 Central region sites: ${cachedCentralSites.length}`);
+      console.log(`⛽ Sites due today: ${cachedTodayData.length}`);
+    } else {
+      console.warn("⚠️ No sites loaded from Google Sheet");
+    }
+  } catch (err) {
+    console.error("❌ Failed to load initial data:", err.message);
+  }
 });
 
 server.on("error", (err) => {
