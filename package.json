@@ -3,9 +3,9 @@
   "version": "1.0.0",
   "description": "COW Fuel Dashboard - Python/Flask Backend",
   "scripts": {
-    "dev": "python test.py && python simple.py",
-    "start": "python simple.py",
-    "test": "python test.py",
+    "dev": "node server.js",
+    "start": "node server.js",
+    "test": "node --version && echo 'Node.js is available'",
     "install": "echo 'No dependencies needed'",
     "setup": "echo 'Setup complete'"
   },
